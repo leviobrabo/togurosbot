@@ -1,0 +1,26 @@
+{
+    "name": "Toguro easy deploy",
+    "description": "'Toguro' is a chatbot that sends messages, stickers and audios",
+    "repository": "https://github.com/leviobrabo/togurosbot",
+    "logo": "https://i.imgur.com/rZuXElK.jpg",
+    "keywords": ["node", "chatbot", "telegrambot"],
+    "website": "https://github.com/leviobrabo/togurosbot",
+    "success_url": "https://t.me/togurovisao",
+    "env": {
+        "TELEGRAM_API": {
+            "description": "Make a bot at BotFather http://telegram.dog/BotFather and get the token of your bot",
+            "value": "",
+            "required": true
+        },
+        "DB_STRING": {
+            "description": "Create database ate MongoDB Atlas https://www.mongodb.com/ create new cluster and get url for connection.",
+            "value": "",
+            "required": true
+        },
+        "groupId": {
+            "description": "Group ID LOG Telegram.",
+            "value": "",
+            "required": true
+        }
+    }
+}
