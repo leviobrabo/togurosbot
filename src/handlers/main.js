@@ -255,7 +255,7 @@ async function start(message) {
     }
     const firstName = message.from.first_name;
 
-    const message_start = `Olá, <b>${firstName}</b>! \n\nEu sou <b>Toguro</b>, sou um bot que não gosta de ser chamado de bot kkkkk e que envia mensagem para você.\n\nMeu diferencial dos outros bots é que eu envio mensagens, áudios e figurinhas. Então aproveite as funções que tenho.\n\n👾 <b>Canal de figurinhas:</b> <a href="https://t.me/lbrabo">Clique aqui</a>`;
+    const message_start = `Olá, <b>${firstName}</b>!\n\nEu sou <b>Toguro</b>, um bot que não gosta de ser chamado de bot kkkkk e que envia mensagens, áudios e figurinhas. Aproveite as funções que eu tenho.\n\n👾 <b>Canal de figurinhas:</b> <a href="https://t.me/lbrabo">Clique aqui</a>\n\n<b>BTC:</b> <code>bc1qjxzlug0cwnfjrhacy9kkpdzxfj0mcxc079axtl</code>\n<b>ETH/USDT:</b> <code>0x1fbde0d2a96869299049f4f6f78fbd789d167d1b</code>`;
     const options_start = {
         parse_mode: "HTML",
         disable_web_page_preview: true,
