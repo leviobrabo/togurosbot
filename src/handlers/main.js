@@ -269,17 +269,17 @@ async function start(message) {
                 ],
                 [
                     {
-                        text: "Canal Oficial",
+                        text: "📬 Canal Oficial",
                         url: "https://t.me/togurovisao",
                     },
                     {
-                        text: "Suporte",
+                        text: "👨‍💻 Suporte",
                         url: "https://t.me/kylorensbot",
                     },
                 ],
                 [
                     {
-                        text: "Github",
+                        text: "📦 Github",
                         url: "https://github.com/leviobrabo/togurosbot",
                     },
                 ],
