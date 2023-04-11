@@ -263,7 +263,7 @@ async function start(message) {
             inline_keyboard: [
                 [
                     {
-                        text: "Adicione-me em seu grupo",
+                        text: "✨ Adicione-me em seu grupo",
                         url: "https://t.me/togurosbot?startgroup=true",
                     },
                 ],
