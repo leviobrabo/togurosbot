@@ -10,6 +10,11 @@ const ChatSchema = new Schema({
         type: String,
         required: true,
     },
+    is_ban: {
+        type: Boolean,
+        default: false,
+        unique: false,
+    },
 });
 
 module.exports = ChatSchema;

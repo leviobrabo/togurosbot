@@ -6,6 +6,10 @@ const { setTimeout } = require("timers/promises");
 
 require("./errors.js");
 const groupId = process.env.groupId;
+function is_dev(user_id) {
+    const devUsers = process.env.DEV_USERS.split(",");
+    return devUsers.includes(user_id.toString());
+}
 
 const forbiddenWords = [
     "Puta",
@@ -250,11 +254,12 @@ async function main(message) {
 }
 
 async function start(message) {
+    const userId = message.from.id;
     if (message.chat.type !== "private") {
         return;
     }
     const firstName = message.from.first_name;
-
+    const message_start_dev = `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\nVocê está no painel do desenvolvedor do Toguro, então aproveite a responsabilidade e use os comandos com consciências`;
     const message_start = `Olá, <b>${firstName}</b>!\n\nEu sou <b>Toguro</b>, um bot que não gosta de ser chamado de bot kkkkk e que envia mensagens, áudios e figurinhas. Aproveite as funções que eu tenho.\n\n👾 <b>Canal de figurinhas:</b> <a href="https://t.me/lbrabo">Clique aqui</a>\n\n<b>BTC:</b> <code>bc1qjxzlug0cwnfjrhacy9kkpdzxfj0mcxc079axtl</code>\n<b>ETH/USDT:</b> <code>0x1fbde0d2a96869299049f4f6f78fbd789d167d1b</code>`;
     const options_start = {
         parse_mode: "HTML",
@@ -286,19 +291,120 @@ async function start(message) {
             ],
         },
     };
-    bot.sendMessage(message.chat.id, message_start, options_start);
+    const options_start_dev = {
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        reply_markup: {
+            inline_keyboard: [
+                [
+                    {
+                        text: "📦 Github",
+                        url: "https://github.com/leviobrabo/togurosbot",
+                    },
+                ],
+                [
+                    {
+                        text: "📬 Canal Oficial",
+                        url: "https://t.me/togurovisao",
+                    },
+                    {
+                        text: "👨‍💻 Suporte",
+                        url: "https://t.me/kylorensbot",
+                    },
+                ],
+                [
+                    {
+                        text: "🗃 Lista de para desenvolvedores",
+                        callback_data: "commands",
+                    },
+                ],
+            ],
+        },
+    };
+    bot.on("callback_query", async (callbackQuery) => {
+        if (callbackQuery.message.chat.type !== "private") {
+            return;
+        }
+        const chatId = callbackQuery.message.chat.id;
+        const messageId = callbackQuery.message.message_id;
+
+        if (callbackQuery.data === "commands") {
+            const commands = [
+                "/stats - Estatística de grupos, usuarios e mensagens enviadas",
+                "/ban - retirar o bot do chat",
+                "/unban - permite o bot do chat",
+                "/banned - lista de grupos conectados",
+                "/groups - permite o bot do chat",
+                "/broadcast ou /bc - envia mensagem para todos usuários",
+                "/ping - veja a latência da VPS",
+            ];
+            await bot.editMessageText(
+                "<b>Lista de Comandos:</b> \n\n" + commands.join("\n"),
+                {
+                    parse_mode: "HTML",
+                    disable_web_page_preview: true,
+                    chat_id: chatId,
+                    message_id: messageId,
+                    reply_markup: {
+                        inline_keyboard: [
+                            [
+                                {
+                                    text: "⬅️ Voltar",
+                                    callback_data: "back_to_start",
+                                },
+                            ],
+                        ],
+                    },
+                }
+            );
+        } else if (callbackQuery.data === "back_to_start") {
+            await bot.editMessageText(message_start_dev, {
+                parse_mode: "HTML",
+                chat_id: chatId,
+                message_id: messageId,
+                disable_web_page_preview: true,
+                reply_markup: options_start_dev.reply_markup,
+            });
+        }
+    });
+    if (is_dev(userId)) {
+        bot.sendMessage(userId, message_start_dev, options_start_dev);
+    } else {
+        bot.sendMessage(message.chat.id, message_start, options_start);
+    }
 }
 
 async function stats(message) {
+    const user_id = message.from.id;
+    if (!(await is_dev(user_id))) {
+        if (message.message_id) {
+            bot.sendMessage(message.chat.id, `Você não é *desenvolvedor*. 👨‍💻`, {
+                reply_to_message_id: message.message_id,
+                parse_mode: "Markdown",
+            });
+        } else {
+            bot.sendMessage(message.chat.id, `Você não é *desenvolvedor*. 👨‍💻`, {
+                parse_mode: "Markdown",
+            });
+            return;
+        }
+    }
     const chatId = message.chat.id;
     const numUsers = await UserModel.countDocuments();
     const numChats = await ChatModel.countDocuments();
     const numMessages = await MessageModel.countDocuments();
     const messageText = `\n──❑ 「 Bot Stats 」 ❑──\n\n ☆ ${numUsers} usuários\n ☆ ${numChats} grupos\n ☆ ${numMessages} mensagens aprendidas`;
-    bot.sendMessage(chatId, messageText);
+
+    if (await is_dev(user_id)) {
+        bot.sendMessage(chatId, messageText);
+    }
 }
 
 async function groups(message) {
+    const user_id = message.from.id;
+    if (!(await is_dev(user_id))) {
+        return;
+    }
     if (message.chat.type !== "private") {
         return;
     }
@@ -333,23 +439,24 @@ async function groups(message) {
         console.error(error);
     }
 }
+
 async function saveNewChatMembers(msg) {
     const chatId = msg.chat.id;
     const chatName = msg.chat.title;
 
     try {
-        const exists = await ChatModel.exists({ chatId: chatId });
-        if (exists) {
+        const chat = await ChatModel.findOne({ chatId: chatId });
+
+        if (chat) {
             console.log(
                 `Grupo ${chatName} (${chatId}) já existe no banco de dados`
             );
-            return;
+        } else {
+            const newChat = await ChatModel.create({ chatId, chatName });
+            console.log(
+                `Grupo ${newChat.chatName} (${newChat.chatId}) adicionado ao banco de dados`
+            );
         }
-
-        const chat = await ChatModel.create({ chatId, chatName });
-        console.log(
-            `Grupo ${chat.chatName} (${chat.chatId}) adicionado ao banco de dados`
-        );
         const message = `#Togurosbot #New_Group
     <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>
     <b>ID:</b> <code>${chat.chatId}</code>`;
@@ -387,8 +494,13 @@ async function saveNewChatMembers(msg) {
                 }
             );
         }
-    } catch (err) {
-        console.error(err);
+        if (chat && chat.is_ban) {
+            console.log(`Bot banido do grupo ${chatName} (${chatId})`);
+            await bot.leaveChat(chatId);
+            return;
+        }
+    } catch (error) {
+        console.error(error);
     }
 }
 
@@ -396,7 +508,20 @@ async function removeLeftChatMember(msg) {
     const chatId = msg.chat.id;
 
     try {
-        const chat = await ChatModel.findOneAndDelete({ chatId });
+        const chat = await ChatModel.findOne({ chatId });
+        if (!chat) {
+            console.log(
+                `Chat com id ${chatId} não foi encontrado no banco de dados`
+            );
+            return;
+        }
+        if (chat.is_ban) {
+            console.log(
+                `Grupo ${chat.chatName} (${chat.chatId}) não removido do banco de dados, pois está banido`
+            );
+            return;
+        }
+        await ChatModel.findOneAndDelete({ chatId });
         console.log(
             `Grupo ${chat.chatName} (${chat.chatId}) removido do banco de dados`
         );
@@ -409,6 +534,108 @@ function pollingError(error) {
     console.log(error);
 }
 
+async function ban(message) {
+    const userId = message.from.id;
+    const chatId = message.text.split(" ")[1];
+
+    if (message.chat.type !== "private") {
+        await bot.sendMessage(
+            message.chat.id,
+            "Por favor, envie este comando em um chat privado com o bot."
+        );
+        return;
+    }
+
+    if (!is_dev(userId)) {
+        await bot.sendMessage(
+            message.chat.id,
+            "Você não está autorizado a executar este comando."
+        );
+        return;
+    }
+
+    const chat = await ChatModel.findOne({ chatId: chatId });
+
+    if (!chat) {
+        await bot.sendMessage(message.chat.id);
+        return;
+    }
+
+    await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: true } });
+    await bot.sendMessage(message.chat.id, `Chat ${chatId} foi banido.`);
+    await bot.leaveChat(chatId);
+}
+
+async function unban(message) {
+    const userId = message.from.id;
+    const chatId = message.text.split(" ")[1];
+
+    if (message.chat.type !== "private") {
+        await bot.sendMessage(
+            message.chat.id,
+            "Por favor, envie este comando em um chat privado com o bot."
+        );
+        return;
+    }
+
+    if (!is_dev(userId)) {
+        await bot.sendMessage(
+            message.chat.id,
+            "Você não está autorizado a executar este comando."
+        );
+        return;
+    }
+
+    const chat = await ChatModel.findOne({ chatId: chatId });
+
+    if (!chat) {
+        await bot.sendMessage(message.chat.id);
+        return;
+    }
+
+    await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: false } });
+    await bot.sendMessage(message.chat.id, `Chat ${chatId} foi desbanido.`);
+}
+
+async function banned(message) {
+    const userId = message.from.id;
+
+    if (message.chat.type !== "private") {
+        await bot.sendMessage(
+            message.chat.id,
+            "Por favor, envie este comando em um chat privado com o bot."
+        );
+        return;
+    }
+
+    if (!is_dev(userId)) {
+        await bot.sendMessage(
+            message.chat.id,
+            "Você não está autorizado a executar este comando."
+        );
+        return;
+    }
+
+    const bannedChats = await ChatModel.find({ is_ban: true });
+
+    if (bannedChats.length === 0) {
+        await bot.sendMessage(
+            message.chat.id,
+            "Nenhum chat encontrado no banco de dados que tenha sido banido."
+        );
+        return;
+    }
+
+    let messageText = "<b>Chats banidos:</b>\n";
+
+    for (const chat of bannedChats) {
+        messageText += `<b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>\n`;
+        messageText += `<b>ID:</b> <code>${chat.chatId}</code>\n\n`;
+    }
+
+    await bot.sendMessage(message.chat.id, messageText, { parse_mode: "HTML" });
+}
+
 exports.initHandler = () => {
     bot.on("message", main);
     bot.on("polling_error", pollingError);
@@ -418,4 +645,95 @@ exports.initHandler = () => {
     bot.onText(/^\/grupos$/, groups);
     bot.on("new_chat_members", saveNewChatMembers);
     bot.on("left_chat_member", removeLeftChatMember);
+    bot.onText(/^\/ban/, ban);
+    bot.onText(/^\/unban/, unban);
+    bot.onText(/^\/banned/, banned);
 };
+
+function timeFormatter(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+
+    const hoursFormatted = String(hours).padStart(2, "0");
+    const minutesFormatted = String(minutes).padStart(2, "0");
+    const secondsFormatted = String(secs).padStart(2, "0");
+
+    return `${hoursFormatted}:${minutesFormatted}:${secondsFormatted}`;
+}
+
+bot.onText(/\/ping/, async (msg) => {
+    const start = new Date();
+    const replied = await bot.sendMessage(msg.chat.id, "𝚙𝚘𝚗𝚐!");
+    const end = new Date();
+    const m_s = end - start;
+    const uptime = process.uptime();
+    const uptime_formatted = timeFormatter(uptime);
+    await bot.editMessageText(
+        `𝚙𝚒𝚗𝚐: \`${m_s}𝚖𝚜\`\n𝚞𝚙𝚝𝚒𝚖𝚎: \`${uptime_formatted}\``,
+        {
+            chat_id: replied.chat.id,
+            message_id: replied.message_id,
+            parse_mode: "Markdown",
+        }
+    );
+});
+
+bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
+    const user_id = msg.from.id;
+    if (!(await is_dev(user_id))) {
+        return;
+    }
+
+    const query = match.input.substring(match[0].length).trim();
+    if (!query) {
+        return bot.sendMessage(
+            msg.chat.id,
+            "<i>I need text to broadcast.</i>",
+            { parse_mode: "HTML" }
+        );
+    }
+    const sentMsg = await bot.sendMessage(msg.chat.id, "<i>Processing...</i>", {
+        parse_mode: "HTML",
+    });
+    const web_preview = query.startsWith("-d");
+    const query_ = web_preview ? query.substring(2).trim() : query;
+    const ulist = await UserModel.find().lean().select("user_id");
+    let sucess_br = 0;
+    let no_sucess = 0;
+    let block_num = 0;
+    for (const { user_id } of ulist) {
+        try {
+            await bot.sendMessage(user_id, query_, {
+                disable_web_page_preview: !web_preview,
+                parse_mode: "HTML",
+            });
+            sucess_br += 1;
+        } catch (err) {
+            if (
+                err.response &&
+                err.response.body &&
+                err.response.body.error_code === 403
+            ) {
+                block_num += 1;
+            } else {
+                no_sucess += 1;
+            }
+        }
+    }
+    await bot.editMessageText(
+        `
+  ╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
+  │- <i>Total Users:</i> \`${ulist.length}\`
+  │- <i>Successful:</i> \`${sucess_br}\`
+  │- <i>Blocked:</i> \`${block_num}\`
+  │- <i>Failed:</i> \`${no_sucess}\`
+  ╰❑
+    `,
+        {
+            chat_id: sentMsg.chat.id,
+            message_id: sentMsg.message_id,
+            parse_mode: "HTML",
+        }
+    );
+});

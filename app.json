@@ -21,6 +21,11 @@
             "description": "Group ID LOG Telegram.",
             "value": "",
             "required": true
+        },
+        "DEV_USERS": {
+            "description": "Developers id ",
+            "value": "",
+            "required": true
         }
     }
 }
