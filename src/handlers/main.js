@@ -502,23 +502,24 @@ async function saveNewChatMembers(msg) {
                 `Grupo ${newChat.chatName} (${newChat.chatId}) adicionado ao banco de dados`
             );
 
-            const message = `#Togurosbot #New_Group
+            const botUser = await bot.getMe();
+            const newMembers = msg.new_chat_members.filter(
+                (member) => member.id === botUser.id
+            );
+
+            if (newMembers.length > 0) {
+                const message = `#Togurosbot #New_Group
     <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>
     <b>ID:</b> <code>${chat.chatId}</code>`;
-            bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
-                (error) => {
-                    console.error(
-                        `Erro ao enviar mensagem para o grupo ${groupId}: ${error}`
-                    );
-                }
-            );
-        }
-        const botUser = await bot.getMe();
-        const newMembers = msg.new_chat_members.filter(
-            (member) => member.id === botUser.id
-        );
+                bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
+                    (error) => {
+                        console.error(
+                            `Erro ao enviar mensagem para o grupo ${groupId}: ${error}`
+                        );
+                    }
+                );
+            }
 
-        if (newMembers.length > 0) {
             bot.sendMessage(
                 chatId,
                 "Olá, me chamo o Toguro! Obrigado por me adicionado em seu grupo. Eu responderei a mensagem da galera no grupo kkkkk.",
