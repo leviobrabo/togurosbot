@@ -410,7 +410,7 @@ async function groups(message) {
     }
 
     try {
-        const chats = await ChatModel.find();
+        const chats = await ChatModel.find().sort({ chatId: 1 });
 
         let contador = 1;
         let chunkSize = 3500 - message.text.length;
@@ -419,7 +419,7 @@ async function groups(message) {
 
         for (let chat of chats) {
             if (chat.chatId < 0) {
-                let groupMessage = `*${contador}:* *Grupo:* ${chat.chatName} *ID:* \`${chat.chatId}\`\n`;
+                let groupMessage = `*${contador}:* *Group:* <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a> *ID:* <code>${chat.chatId}</code>\n`;
                 if (currentChunk.length + groupMessage.length > chunkSize) {
                     messageChunks.push(currentChunk);
                     currentChunk = "";
@@ -432,7 +432,7 @@ async function groups(message) {
 
         for (let i = 0; i < messageChunks.length; i++) {
             await bot.sendMessage(message.chat.id, messageChunks[i], {
-                parse_mode: "Markdown",
+                parse_mode: "HTML",
             });
         }
     } catch (error) {
