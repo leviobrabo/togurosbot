@@ -408,12 +408,11 @@ async function groups(message) {
     if (message.chat.type !== "private") {
         return;
     }
-
     try {
         const chats = await ChatModel.find().sort({ chatId: 1 });
 
         let contador = 1;
-        let chunkSize = 3500 - message.text.length;
+        let chunkSize = 4096; // alterando o tamanho do chunkSize para 4096
         let messageChunks = [""];
         let currentChunk = "";
 
@@ -446,7 +445,8 @@ async function groups(message) {
             parse_mode: "HTML",
         };
 
-        if (index > 0) {
+        if (index !== 0) {
+            // removendo botão "<<" se index for igual a 0
             markup.reply_markup.inline_keyboard[0].unshift({
                 text: `<< ${index + 1}`,
                 callback_data: `groups:${index - 1}`,
@@ -461,10 +461,19 @@ async function groups(message) {
                 index = Number(query.data.split(":")[1]);
                 markup.reply_markup.inline_keyboard[0][0].disabled =
                     index === 0;
-                markup.reply_markup.inline_keyboard[0][0].text =
-                    index > 0 ? `<< ${index}` : "1";
                 markup.reply_markup.inline_keyboard[0][1].disabled =
                     index === messageChunks.length - 1;
+
+                if (index !== 0) {
+                    // removendo botão "<<" se index for igual a 0
+                    markup.reply_markup.inline_keyboard[0][0].callback_data = `groups:${
+                        index - 1
+                    }`;
+                    markup.reply_markup.inline_keyboard[0][0].disabled = false;
+                } else {
+                    markup.reply_markup.inline_keyboard[0][0].disabled = true;
+                }
+
                 await bot.editMessageText(messageChunks[index], {
                     chat_id: query.message.chat.id,
                     message_id: query.message.message_id,
