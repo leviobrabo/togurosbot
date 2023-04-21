@@ -416,6 +416,7 @@ async function groups(message) {
         let chunkSize = 3500 - message.text.length;
         let messageChunks = [];
         let currentChunk = "";
+        messageChunks.push(currentChunk); 
 
         for (let chat of chats) {
             if (chat.chatId < 0) {
@@ -451,15 +452,17 @@ async function groups(message) {
             parse_mode: "HTML",
         };
 
-        await bot.sendMessage(message.chat.id, messageChunks[index], markup);
-
+        if (messageChunks.length > 0) {
+            await bot.sendMessage(message.chat.id, messageChunks[index], markup);
+        }
+        
         bot.on("callback_query", async (query) => {
             if (query.data.startsWith("groups:")) {
                 index = Number(query.data.split(":")[1]);
-                markup.reply_markup.inline_keyboard[0][0].disabled =
-                    index === 0;
-                markup.reply_markup.inline_keyboard[0][1].disabled =
-                    index === messageChunks.length - 1;
+                markup.reply_markup.inline_keyboard[0]?.[0].disabled =
+                index === 0;
+                markup.reply_markup.inline_keyboard[0]?.[1].disabled =
+                index === messageChunks.length - 1;
                 await bot.editMessageText(messageChunks[index], {
                     chat_id: query.message.chat.id,
                     message_id: query.message.message_id,
