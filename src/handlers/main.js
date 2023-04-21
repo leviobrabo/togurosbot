@@ -436,11 +436,6 @@ async function groups(message) {
                 inline_keyboard: [
                     [
                         {
-                            text: index > 0 ? `<< ${index}` : "1",
-                            callback_data: `groups:${index - 1}`,
-                            disabled: index === 0,
-                        },
-                        {
                             text: `>> ${index + 2}`,
                             callback_data: `groups:${index + 1}`,
                             disabled: index === messageChunks.length - 1,
@@ -450,6 +445,14 @@ async function groups(message) {
             },
             parse_mode: "HTML",
         };
+
+        if (index > 0) {
+            markup.reply_markup.inline_keyboard[0].unshift({
+                text: `<< ${index + 1}`,
+                callback_data: `groups:${index - 1}`,
+                disabled: index === 0,
+            });
+        }
 
         await bot.sendMessage(message.chat.id, messageChunks[index], markup);
 
