@@ -556,6 +556,11 @@ async function saveNewChatMembers(msg) {
 }
 
 async function removeLeftChatMember(msg) {
+    const botUser = await bot.getMe();
+    if (msg.left_chat_member.id !== botUser.id) {
+        return;
+    }
+
     const chatId = msg.chat.id;
 
     try {
