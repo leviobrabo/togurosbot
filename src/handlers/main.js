@@ -436,7 +436,7 @@ async function groups(message) {
                 inline_keyboard: [
                     [
                         {
-                            text: `<< ${index + 1}`,
+                            text: index > 0 ? `<< ${index}` : "1",
                             callback_data: `groups:${index - 1}`,
                             disabled: index === 0,
                         },
@@ -458,6 +458,8 @@ async function groups(message) {
                 index = Number(query.data.split(":")[1]);
                 markup.reply_markup.inline_keyboard[0][0].disabled =
                     index === 0;
+                markup.reply_markup.inline_keyboard[0][0].text =
+                    index > 0 ? `<< ${index}` : "1";
                 markup.reply_markup.inline_keyboard[0][1].disabled =
                     index === messageChunks.length - 1;
                 await bot.editMessageText(messageChunks[index], {
