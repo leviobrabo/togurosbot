@@ -400,8 +400,6 @@ async function stats(message) {
     }
 }
 
-const { ChatModel } = require("../database");
-
 async function groups(message) {
     const user_id = message.from.id;
     if (!(await is_dev(user_id))) {
