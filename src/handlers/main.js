@@ -413,13 +413,13 @@ async function groups(message) {
         const chats = await ChatModel.find().sort({ chatId: 1 });
 
         let contador = 1;
-        let chunkSize = 4096 - message.text.length;
+        let chunkSize = 3500 - message.text.length;
         let messageChunks = [];
         let currentChunk = "";
 
         for (let chat of chats) {
             if (chat.chatId < 0) {
-                let groupMessage = `*${contador}:* *Group:* <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a> *ID:* <code>${chat.chatId}</code>\n`;
+                let groupMessage = `<b>${contador}:</b> <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a> *ID:* <code>${chat.chatId}</code>\n`;
                 if (currentChunk.length + groupMessage.length > chunkSize) {
                     messageChunks.push(currentChunk);
                     currentChunk = "";
@@ -430,15 +430,49 @@ async function groups(message) {
         }
         messageChunks.push(currentChunk);
 
-        for (let i = 0; i < messageChunks.length; i++) {
-            await bot.sendMessage(message.chat.id, messageChunks[i], {
-                parse_mode: "HTML",
-            });
-        }
+        let index = 0; // initialize index to 0
+        const markup = {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: `<< ${index + 1}`,
+                            callback_data: `groups:${index - 1}`,
+                            disabled: index === 0,
+                        },
+                        {
+                            text: `>> ${index + 2}`,
+                            callback_data: `groups:${index + 1}`,
+                            disabled: index === messageChunks.length - 1,
+                        },
+                    ],
+                ],
+            },
+            parse_mode: "HTML",
+        };
+
+        await bot.sendMessage(message.chat.id, messageChunks[index], markup);
+
+        bot.on("callback_query", async (query) => {
+            if (query.data.startsWith("groups:")) {
+                index = Number(query.data.split(":")[1]);
+                markup.reply_markup.inline_keyboard[0][0].disabled =
+                    index === 0;
+                markup.reply_markup.inline_keyboard[0][1].disabled =
+                    index === messageChunks.length - 1;
+                await bot.editMessageText(messageChunks[index], {
+                    chat_id: query.message.chat.id,
+                    message_id: query.message.message_id,
+                    ...markup,
+                });
+                await bot.answerCallbackQuery(query.id);
+            }
+        });
     } catch (error) {
         console.error(error);
     }
 }
+
 async function saveNewChatMembers(msg) {
     const chatId = msg.chat.id;
     const chatName = msg.chat.title;
