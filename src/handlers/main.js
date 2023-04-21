@@ -487,7 +487,7 @@ async function groups(message) {
 
 async function saveNewChatMembers(msg) {
     const chatId = msg.chat.id;
-    const chatName = msg.chat ? msg.chat.title : null;
+    const chatName = msg.chat.title;
 
     try {
         const chat = await ChatModel.findOne({ chatId: chatId });
@@ -509,7 +509,7 @@ async function saveNewChatMembers(msg) {
 
             if (newMembers.length > 0) {
                 const message = `#Togurosbot #New_Group
-    <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>
+    <b>Group:</b> =${chat.chatName}
     <b>ID:</b> <code>${chat.chatId}</code>`;
                 bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
                     (error) => {
