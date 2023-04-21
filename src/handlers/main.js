@@ -414,7 +414,7 @@ async function groups(message) {
 
         let contador = 1;
         let chunkSize = 3500 - message.text.length;
-        let messageChunks = [];
+        let messageChunks = [""];
         let currentChunk = "";
 
         for (let chat of chats) {
