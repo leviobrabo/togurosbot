@@ -413,13 +413,13 @@ async function groups(message) {
         const chats = await ChatModel.find().sort({ chatId: 1 });
 
         let contador = 1;
-        let chunkSize = 3500 - message.text.length;
+        let chunkSize = 3900 - message.text.length;
         let messageChunks = [];
         let currentChunk = "";
 
         for (let chat of chats) {
             if (chat.chatId < 0) {
-                let groupMessage = `<b>${contador}:</b> <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a> <b>ID:</b> <code>${chat.chatId}</code>\n`;
+                let groupMessage = `<b>${contador}:</b> <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a> <b>ID:</b> <code>${chat.chatId}</code>\n\n`;
                 if (currentChunk.length + groupMessage.length > chunkSize) {
                     messageChunks.push(currentChunk);
                     currentChunk = "";
@@ -430,9 +430,8 @@ async function groups(message) {
         }
         messageChunks.push(currentChunk);
 
-        let index = 0; // initialize index to 0
+        let index = 0;
 
-        // Update markup object to have different reply markup for each message index
         const markup = (index) => {
             return {
                 reply_markup: {
