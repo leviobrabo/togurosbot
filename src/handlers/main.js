@@ -487,7 +487,7 @@ async function groups(message) {
 
 async function saveNewChatMembers(msg) {
     const chatId = msg.chat.id;
-    const chatName = msg.chat.title;
+    const chatName = msg.chat ? msg.chat.title : null;
 
     try {
         const chat = await ChatModel.findOne({ chatId: chatId });
