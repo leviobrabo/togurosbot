@@ -419,7 +419,7 @@ async function groups(message) {
 
         for (let chat of chats) {
             if (chat.chatId < 0) {
-                let groupMessage = `<b>${contador}:</b> <b>Group:</b> ${chat.chatName} <b>ID:</b> <code>${chat.chatId}</code>\n`;
+                let groupMessage = `<b>${contador}:</b> <b>Group=</b> ${chat.chatName} || <b>ID:</b> <code>${chat.chatId}</code>\n`;
                 if (currentChunk.length + groupMessage.length > chunkSize) {
                     messageChunks.push(currentChunk);
                     currentChunk = "";
