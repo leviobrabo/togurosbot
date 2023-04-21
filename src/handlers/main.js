@@ -413,7 +413,7 @@ async function groups(message) {
         const chats = await ChatModel.find().sort({ chatId: 1 });
 
         let contador = 1;
-        let chunkSize = 4096; // alterado o chunkSize para 4096
+        let chunkSize = 4096 - message.text.length;
         let messageChunks = [];
         let currentChunk = "";
 
@@ -430,54 +430,15 @@ async function groups(message) {
         }
         messageChunks.push(currentChunk);
 
-        // adicionando botões de avançar e voltar
-        let buttons = [];
-        if (messageChunks.length > 1) {
-            if (messageChunks.indexOf(currentChunk) > 0) {
-                buttons.push({
-                    text: "Voltar",
-                    callback_data: "back",
-                });
-            }
-            if (
-                messageChunks.indexOf(currentChunk) <
-                messageChunks.length - 1
-            ) {
-                buttons.push({
-                    text: "Avançar",
-                    callback_data: "next",
-                });
-            }
-        }
-
-        // adicionando botões ao último chunk
-        let lastChunk = messageChunks[messageChunks.length - 1];
-        let options = {
-            parse_mode: "HTML",
-            reply_markup: {
-                inline_keyboard: [buttons],
-            },
-        };
-
-        await bot.sendMessage(message.chat.id, lastChunk, options);
-
-        // adicionando botões aos demais chunks
-        for (let i = 0; i < messageChunks.length - 1; i++) {
-            let options = {
+        for (let i = 0; i < messageChunks.length; i++) {
+            await bot.sendMessage(message.chat.id, messageChunks[i], {
                 parse_mode: "HTML",
-                reply_markup: {
-                    inline_keyboard: [
-                        [{ text: "Avançar", callback_data: "next" }],
-                    ],
-                },
-            };
-            await bot.sendMessage(message.chat.id, messageChunks[i], options);
+            });
         }
     } catch (error) {
         console.error(error);
     }
 }
-
 async function saveNewChatMembers(msg) {
     const chatId = msg.chat.id;
     const chatName = msg.chat.title;
