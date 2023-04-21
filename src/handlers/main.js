@@ -430,11 +430,44 @@ async function groups(message) {
         }
         messageChunks.push(currentChunk);
 
-        for (let i = 0; i < messageChunks.length; i++) {
-            await bot.sendMessage(message.chat.id, messageChunks[i], {
-                parse_mode: "HTML",
-            });
-        }
+        let index = 0;
+        const markup = {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: `<< ${index + 1}`,
+                            callback_data: `groups:${index - 1}`,
+                            disabled: index === 0,
+                        },
+                        {
+                            text: `>> ${index + 2}`,
+                            callback_data: `groups:${index + 1}`,
+                            disabled: index === messageChunks.length - 1,
+                        },
+                    ],
+                ],
+            },
+            parse_mode: "HTML",
+        };
+
+        await bot.sendMessage(message.chat.id, messageChunks[index], markup);
+
+        bot.on("callback_query", async (query) => {
+            if (query.data.startsWith("groups:")) {
+                index = Number(query.data.split(":")[1]);
+                markup.reply_markup.inline_keyboard[0][0].disabled =
+                    index === 0;
+                markup.reply_markup.inline_keyboard[0][1].disabled =
+                    index === messageChunks.length - 1;
+                await bot.editMessageText(messageChunks[index], {
+                    chat_id: query.message.chat.id,
+                    message_id: query.message.message_id,
+                    ...markup,
+                });
+                await bot.answerCallbackQuery(query.id);
+            }
+        });
     } catch (error) {
         console.error(error);
     }
