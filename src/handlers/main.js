@@ -81,20 +81,17 @@ async function addReply(message) {
 
 async function removeMessage(message) {
     const repliedMessage =
-        message.reply_to_message.sticker?.file_unique_id ??
-        message.reply_to_message.text;
-    const replyMessage = message.sticker?.file_id ?? message.text;
-
-    if (message.reply_to_message) {
-        const replyExists = await MessageModel.exists({ reply: replyMessage });
-        if (replyExists) {
-            await MessageModel.deleteOne({ reply: replyMessage });
-            console.log("ReplyMessage removido do banco de dados");
-        }
-    }
-
+        message.reply_to_message &&
+        (message.reply_to_message.sticker?.file_unique_id ??
+            message.reply_to_message.text);
+    const replyMessage =
+        message.reply_to_message && (message.sticker?.file_id ?? message.text);
     const exists = await MessageModel.exists({
-        $or: [{ message: repliedMessage }, { reply: replyMessage }],
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: "" },
+        ],
     });
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
@@ -108,7 +105,11 @@ async function removeMessage(message) {
     }
 
     await MessageModel.deleteMany({
-        $or: [{ message: repliedMessage }, { reply: replyMessage }],
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: "" },
+        ],
     });
     console.log("Mensagem removida do banco de dados");
 
