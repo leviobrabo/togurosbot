@@ -259,39 +259,26 @@ async function main(message) {
 }
 
 async function removeMessage(message) {
+    if (!is_dev(message.from.id)) return;
+
     const repliedMessage =
         message.reply_to_message &&
         (message.reply_to_message.sticker?.file_unique_id ??
             message.reply_to_message.text);
     const replyMessage = message.sticker?.file_id ?? message.text;
-    const exists = await MessageModel.exists({
-        $or: [{ message: repliedMessage }, { reply: "" }],
+
+    if (
+        !message.reply_to_message ||
+        message.reply_to_message.from.id !== bot.botInfo.id
+    )
+        return;
+
+    await bot.deleteMessage(message.chat.id, message.message_id);
+
+    await MessageModel.deleteOne({
+        message: repliedMessage,
+        reply: { $in: [replyMessage] },
     });
-    if (!exists) {
-        console.log("Mensagem não encontrada no banco de dados");
-        return;
-    }
-
-    const user_id = message.from.id;
-    if (!is_dev(user_id)) {
-        console.log("Apenas os desenvolvedores podem remover mensagens");
-        return;
-    }
-
-    const query = {
-        $or: [{ message: repliedMessage }, { reply: "" }],
-    };
-
-    await MessageModel.deleteMany(query);
-    console.log("Mensagem removida do banco de dados");
-
-    await bot.sendMessage(
-        message.chat.id,
-        "<b>Mensagem removida com sucesso!</b>",
-        {
-            parse_mode: "HTML",
-        }
-    );
 }
 
 async function start(message) {
