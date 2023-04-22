@@ -486,10 +486,6 @@ async function groups(message) {
 }
 
 async function saveNewChatMembers(msg) {
-    if (!msg.chat) {
-        console.log("Error: message chat object is null");
-        return;
-    }
     const chatId = msg.chat.id;
     const chatName = msg.chat.title;
 
