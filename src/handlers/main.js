@@ -79,31 +79,25 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message, replyMessage) {
-    const chatId = message.chat.id;
-    const isDev = is_dev(message.from.id);
-
-    if (!isDev) {
-        // enviar mensagem informando que somente o is_dev pode executar essa ação
-        await bot.sendMessage(
-            chatId,
-            "Somente o desenvolvedor pode executar esta ação."
-        );
+async function removeMessage(replyMessage, user_id) {
+    if (!is_dev(user_id)) {
+        // se o usuário não for is_dev, retorne sem fazer nada
         return;
     }
 
-    const deleted = await MessageModel.findOneAndDelete({
-        reply: replyMessage,
-    });
+    const result = await MessageModel.deleteOne({ reply: replyMessage });
 
-    if (deleted) {
-        // enviar mensagem de confirmação de que o reply foi deletado com sucesso
-        await bot.sendMessage(chatId, "Reply deletado com sucesso.");
-    } else {
-        // enviar mensagem informando que não foi encontrado nenhum reply para deletar
+    if (result.deletedCount > 0) {
+        // se a mensagem foi deletada com sucesso, envie uma mensagem de confirmação
         await bot.sendMessage(
             chatId,
-            "Não foi encontrado nenhum reply para deletar."
+            `A mensagem "${replyMessage}" foi apagada com sucesso.`
+        );
+    } else {
+        // se a mensagem não foi encontrada, envie uma mensagem de erro
+        await bot.sendMessage(
+            chatId,
+            `A mensagem "${replyMessage}" não foi encontrada.`
         );
     }
 }
