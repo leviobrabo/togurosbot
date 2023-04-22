@@ -79,6 +79,25 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
+async function deleteMessage(message) {
+    if (!is_dev(message.from.id)) {
+        // o usuário que executou o comando não é um dev, sair da função
+        return;
+    }
+
+    const repliedMessage = message.reply_to_message.text;
+    const deletedMessage = await MessageModel.findOneAndDelete({
+        message: repliedMessage,
+    });
+
+    if (!deletedMessage) {
+        // a mensagem não foi encontrada no banco de dados, sair da função
+        return;
+    }
+
+    return `Mensagem removida com sucesso: "${deletedMessage.message}"`;
+}
+
 const audioList = [
     {
         keyword: "Em pleno 2022",
@@ -709,6 +728,7 @@ exports.initHandler = () => {
     bot.onText(/^\/ban/, ban);
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
+    bot.onText(/^\/delmsg/, deleteMessage);
 };
 
 function timeFormatter(seconds) {
