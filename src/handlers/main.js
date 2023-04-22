@@ -83,7 +83,7 @@ async function removeMessage(message) {
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
-    const replyMessage = message.reply_to_message.message_id;
+    const replyMessage = message.sticker?.file_id ?? message.text;
     const exists = await MessageModel.exists({
         $or: [{ message: repliedMessage }, { reply: replyMessage }],
     });
