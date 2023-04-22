@@ -79,48 +79,33 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeReply(message) {
+async function deleteReply(message) {
     const chatId = message.chat.id;
-    const messageId = message.reply_to_message?.message_id;
+    const repliedMessage =
+        message.reply_to_message.sticker?.file_unique_id ??
+        message.reply_to_message.text;
 
-    if (!messageId) {
+    const isDev = message.from.id === process.env.IS_DEV_ID; // Verifica se o usuário é o is_dev
+
+    if (!isDev) {
         await bot.sendMessage(
             chatId,
-            "Você precisa marcar uma mensagem para remover."
+            "Somente o is_dev pode usar este comando."
         );
         return;
     }
 
-    const messageObj = await MessageModel.findOne({
-        reply: { $elemMatch: { message_id: messageId } },
-    });
+    const exists = await MessageModel.exists({ message: repliedMessage });
 
-    if (!messageObj) {
-        await bot.sendMessage(
-            chatId,
-            "Não há nenhuma mensagem associada a este id."
+    if (exists) {
+        await MessageModel.findOneAndUpdate(
+            { message: repliedMessage },
+            {
+                $pull: { reply: message.reply_to_message.text },
+            }
         );
-        return;
+        await bot.sendMessage(chatId, "Resposta removida com sucesso!");
     }
-
-    if (!is_dev(message.from.id)) {
-        await bot.sendMessage(
-            chatId,
-            "Apenas desenvolvedores têm permissão para remover mensagens."
-        );
-        return;
-    }
-
-    const updatedReply = messageObj.reply.filter(
-        (reply) => reply.message_id !== messageId
-    );
-
-    await MessageModel.updateOne(
-        { _id: messageObj._id },
-        { reply: updatedReply }
-    );
-
-    await bot.sendMessage(chatId, "Resposta removida com sucesso!");
 }
 
 const audioList = [
@@ -753,7 +738,7 @@ exports.initHandler = () => {
     bot.onText(/^\/ban/, ban);
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, removeReply);
+    bot.onText(/^\/delmsg/, deleteReply);
 };
 
 function timeFormatter(seconds) {
