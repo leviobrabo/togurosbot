@@ -79,19 +79,24 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message) {
-    const user_id = message.from.id;
-    if (!is_dev(user_id)) {
-        console.log("Usuário não autorizado a usar este comando.");
+async function removeMessage(message, replyMessage) {
+    if (!is_dev(message.from.id)) {
         return;
     }
 
-    const result = await MessageModel.deleteOne({ reply: replyMessage });
-
-    if (result.deletedCount > 0) {
-        console.log("Reply deletado com sucesso!");
+    const result = await MessageModel.findOneAndDelete({ reply: replyMessage });
+    if (result) {
+        const chatId = message.chat.id;
+        const sendMessageOptions = { reply_to_message_id: message.message_id };
+        await bot.sendMessage(
+            chatId,
+            `A mensagem de resposta "${replyMessage}" foi apagada com sucesso.`,
+            sendMessageOptions
+        );
     } else {
-        console.log("Reply não encontrado.");
+        console.log(
+            `A mensagem de resposta "${replyMessage}" não foi encontrada no banco de dados.`
+        );
     }
 }
 
