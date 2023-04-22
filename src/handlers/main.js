@@ -260,24 +260,30 @@ async function main(message) {
 
 async function removeMessage(message) {
     const user_id = message.from.id;
-    const isDev = is_dev(user_id);
-
-    if (!isDev) {
-        console.log("Acesso negado!");
+    if (!is_dev(user_id)) {
+        console.log("Usuário não autorizado a usar esse comando");
         return;
     }
 
-    const botMessage = message.message_id;
+    const repliedMessage =
+        message.reply_to_message &&
+        (message.reply_to_message.sticker?.file_unique_id ??
+            message.reply_to_message.text);
 
-    if (message.reply_to_message) {
-        const repliedMessage =
-            message.reply_to_message.sticker?.file_unique_id ??
-            message.reply_to_message.text;
-
-        await MessageModel.findOneAndDelete({ message: repliedMessage });
+    const exists = await MessageModel.exists({ message: repliedMessage });
+    if (!exists) {
+        console.log("Mensagem não encontrada no banco de dados");
+        return;
     }
 
-    await bot.telegram.deleteMessage(message.chat.id, botMessage);
+    await MessageModel.deleteMany({
+        $or: [
+            { message: repliedMessage },
+            { reply: { $elemMatch: { $eq: repliedMessage } } },
+        ],
+    });
+
+    console.log("Mensagem removida com sucesso");
 }
 
 async function start(message) {
