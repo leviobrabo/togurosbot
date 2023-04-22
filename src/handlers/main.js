@@ -81,24 +81,16 @@ async function addReply(message) {
 
 async function removeMessage(replyMessage, user_id) {
     if (!is_dev(user_id)) {
-        // se o usuário não for is_dev, retorne sem fazer nada
+        console.log("Usuário não autorizado a usar este comando.");
         return;
     }
 
     const result = await MessageModel.deleteOne({ reply: replyMessage });
 
     if (result.deletedCount > 0) {
-        // se a mensagem foi deletada com sucesso, envie uma mensagem de confirmação
-        await bot.sendMessage(
-            chatId,
-            `A mensagem "${replyMessage}" foi apagada com sucesso.`
-        );
+        console.log("Reply deletado com sucesso!");
     } else {
-        // se a mensagem não foi encontrada, envie uma mensagem de erro
-        await bot.sendMessage(
-            chatId,
-            `A mensagem "${replyMessage}" não foi encontrada.`
-        );
+        console.log("Reply não encontrado.");
     }
 }
 
