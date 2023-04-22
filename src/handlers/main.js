@@ -286,13 +286,20 @@ async function removeMessage(message) {
     console.log("Mensagem removida com sucesso");
     const chatId = message.chat.id;
     const user = message.from;
-    bot.sendMessage(
-        chatId,
-        `Mensagem deletada com sucesso do banco de dados pelo usuário: <b><a href="tg://user?id=${user.id}">${user.first_name}</a></b>. Lembrando que todas as respostas que estavam adicionadas a essa mensagem foram apagadas.`,
-        { parse_mode: "HTML" }
-    );
+    if (message.message_id) {
+        bot.sendMessage(
+            chatId,
+            `Mensagem deletada com sucesso do banco de dados pelo usuário: <b><a href="tg://user?id=${user.id}">${user.first_name}</a></b>. \n\nObs.: Lembrando que todas as respostas que estavam adicionadas a essa mensagem foram apagadas.`,
+            { parse_mode: "HTML", reply_to_message_id: message.message_id }
+        );
+    } else {
+        bot.sendMessage(
+            chatId,
+            `Mensagem deletada com sucesso do banco de dados pelo usuário: <b><a href="tg://user?id=${user.id}">${user.first_name}</a></b>. \n\nObs.: Lembrando que todas as respostas que estavam adicionadas a essa mensagem foram apagadas.`,
+            { parse_mode: "HTML" }
+        );
+    }
 }
-
 async function start(message) {
     const userId = message.from.id;
     if (message.chat.type !== "private") {
