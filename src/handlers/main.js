@@ -85,7 +85,7 @@ async function removeMessage(message) {
         message.reply_to_message.text;
     const replyMessage = message.reply_to_message.message_id;
     const exists = await MessageModel.exists({
-        $or: [{ message: repliedMessage }, { message: replyMessage }],
+        $or: [{ message: repliedMessage }, { reply: replyMessage }],
     });
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
@@ -99,7 +99,7 @@ async function removeMessage(message) {
     }
 
     await MessageModel.deleteMany({
-        $or: [{ message: repliedMessage }, { message: replyMessage }],
+        $or: [{ message: repliedMessage }, { reply: replyMessage }],
     });
     console.log("Mensagem removida do banco de dados");
 
