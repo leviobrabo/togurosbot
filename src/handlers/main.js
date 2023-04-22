@@ -80,7 +80,6 @@ async function addReply(message) {
 }
 
 async function removeMessage(message) {
-    // Verifica se a mensagem é uma resposta a uma mensagem salva
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
@@ -90,16 +89,29 @@ async function removeMessage(message) {
         return;
     }
 
-    // Verifica se o usuário é um is_dev
     const user_id = message.from.id;
     if (!is_dev(user_id)) {
         console.log("Apenas os desenvolvedores podem remover mensagens");
         return;
     }
 
-    // Remove a mensagem e suas respostas
-    await MessageModel.deleteOne({ message: repliedMessage });
+    const result = await MessageModel.findOneAndDelete({
+        message: repliedMessage,
+    });
     console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
+
+    const reply = message.reply_to_message;
+    const replyText =
+        reply.sticker?.file_id ??
+        reply.text ??
+        `Resposta de ${reply.from.first_name}`;
+    const index = result.reply.indexOf(replyText);
+    if (index > -1) {
+        result.reply.splice(index, 1);
+        await result.save();
+    }
+
+    await message.reply.text("Resposta removida com sucesso!");
 }
 
 const audioList = [
