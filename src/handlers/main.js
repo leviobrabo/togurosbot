@@ -79,29 +79,26 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message) {
+async function removeReply(message) {
+    if (!is_dev(message.from.id)) {
+        console.log("Usuário não é desenvolvedor");
+        return;
+    }
+
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
 
-    const regex = /^[\/.!]/;
-    if (regex.test(repliedMessage)) {
-        console.log("Mensagem não salva começa com /, . ou !");
+    const messageDoc = await MessageModel.findOne({ message: repliedMessage });
+
+    if (!messageDoc) {
+        console.log("Mensagem não encontrada no banco de dados");
         return;
     }
 
-    const isDeveloper = is_dev(message.from.id);
-    if (!isDeveloper) {
-        console.log("Usuário não autorizado");
-        return;
-    }
+    await messageDoc.updateOne({ $pull: { reply: message.text } });
 
-    const deleted = await MessageModel.deleteOne({ message: repliedMessage });
-    if (deleted.deletedCount === 1) {
-        console.log("Mensagem removida com sucesso");
-    } else {
-        console.log("Não foi possível remover a mensagem");
-    }
+    console.log("Resposta removida com sucesso");
 }
 
 const audioList = [
