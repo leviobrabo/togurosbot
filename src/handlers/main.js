@@ -99,7 +99,11 @@ async function removeMessage(message) {
     }
 
     await MessageModel.deleteMany({
-        $or: [{ message: repliedMessage }, { reply: replyMessage }],
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: message.text },
+        ],
     });
     console.log("Mensagem removida do banco de dados");
 
