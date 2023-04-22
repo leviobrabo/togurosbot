@@ -550,7 +550,7 @@ async function saveNewChatMembers(msg) {
         );
 
         if (developerMembers.length > 0) {
-            const message = `Um dos meus desenvolvedores entrou no grupo <a href="tg://user?id=${developerMembers[0].id}">${developerMembers[0].first_name}</a>`;
+            const message = `👨‍💻 <b>ᴜᴍ ᴅᴏs ᴍᴇᴜs ᴅᴇsᴇɴᴠᴏʟᴠᴇᴅᴏʀᴇs ᴇɴᴛʀᴏᴜ ɴᴏ ɢʀᴜᴘᴏ</b> <a href="tg://user?id=${developerMembers[0].id}">${developerMembers[0].first_name}</a> 😎👍`;
             bot.sendMessage(chatId, message, { parse_mode: "HTML" }).catch(
                 (error) => {
                     console.error(
