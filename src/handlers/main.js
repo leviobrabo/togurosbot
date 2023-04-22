@@ -83,12 +83,10 @@ async function removeMessage(message) {
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
-
-    const replyMessage = message.sticker?.file_id ?? message.text;
-
-    const messageToDelete = repliedMessage || replyMessage;
-
-    const exists = await MessageModel.exists({ message: messageToDelete });
+    const replyMessage = message.reply_to_message.message_id;
+    const exists = await MessageModel.exists({
+        $or: [{ message: repliedMessage }, { message: replyMessage }],
+    });
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
         return;
@@ -103,11 +101,11 @@ async function removeMessage(message) {
     await MessageModel.deleteMany({
         $or: [{ message: repliedMessage }, { message: replyMessage }],
     });
-    console.log(`Mensagem removida do banco de dados: ${messageToDelete}`);
+    console.log("Mensagem removida do banco de dados");
 
     await bot.sendMessage(
         message.chat.id,
-        "<b>Resposta removida com sucesso!</b>",
+        "<b>Mensagem removida com sucesso!</b>",
         {
             parse_mode: "HTML",
         }
