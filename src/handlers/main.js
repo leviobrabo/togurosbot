@@ -731,7 +731,7 @@ exports.initHandler = () => {
     bot.onText(/^\/ban/, ban);
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, removeMessage);
+    bot.onText(/^\/delmsg/, removeReply);
 };
 
 function timeFormatter(seconds) {
