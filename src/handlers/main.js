@@ -79,7 +79,7 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(replyMessage, user_id) {
+async function removeMessage(message) {
     const user_id = message.from.id;
     if (!is_dev(user_id)) {
         console.log("Usuário não autorizado a usar este comando.");
