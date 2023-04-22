@@ -382,7 +382,8 @@ async function start(message) {
                 "/unban - permite o bot do chat",
                 "/banned - lista de grupos conectados",
                 "/groups - permite o bot do chat",
-                "/broadcast ou /bc - envia mensagem para todos usuários",
+                "/bc - envia mensagem para todos os usuários",
+                "/broadcast - encaminha uma mensagem para todos os usuários",
                 "/ping - veja a latência da VPS",
                 "/delmsg - Apague uma mensagem do banco de dados do bot",
                 "/devs - lista de desenvolvedores do bot ",
@@ -847,35 +848,40 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
             { parse_mode: "HTML" }
         );
     }
-    const sentMsg = await bot.sendMessage(msg.chat.id, "<i>Processing...</i>", {
-        parse_mode: "HTML",
-    });
+
+    const isDirectMessage = query.startsWith("/bc ");
     const web_preview = query.startsWith("-d");
-    const query_ = web_preview ? query.substring(2).trim() : query;
+    const query_ = (isDirectMessage ? query.substring(4) : query).trim();
+
     const ulist = await UserModel.find().lean().select("user_id");
     let sucess_br = 0;
     let no_sucess = 0;
     let block_num = 0;
+
     for (const { user_id } of ulist) {
         try {
-            const forwarded = msg.forward_from_chat || msg.forward_from;
-            const forwardedFrom = forwarded
-                ? ` from ${forwarded.title || forwarded.first_name}`
-                : "";
-
-            await bot.forwardMessage(user_id, msg.chat.id, msg.message_id);
-
-            await bot.sendMessage(
-                user_id,
-                `Message from ${
-                    msg.chat.title || msg.chat.first_name
-                }${forwardedFrom}: ${query_}`,
-                {
+            if (isDirectMessage) {
+                await bot.sendMessage(user_id, query_, {
                     disable_web_page_preview: !web_preview,
                     parse_mode: "HTML",
-                }
-            );
-
+                });
+            } else {
+                const forwarded = msg.forward_from_chat || msg.forward_from;
+                const forwardedFrom = forwarded
+                    ? ` from ${forwarded.title || forwarded.first_name}`
+                    : "";
+                await bot.forwardMessage(user_id, msg.chat.id, msg.message_id);
+                await bot.sendMessage(
+                    user_id,
+                    `Message from ${
+                        msg.chat.title || msg.chat.first_name
+                    }${forwardedFrom}: ${query_}`,
+                    {
+                        disable_web_page_preview: !web_preview,
+                        parse_mode: "HTML",
+                    }
+                );
+            }
             sucess_br += 1;
         } catch (err) {
             if (
@@ -889,7 +895,9 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
             }
         }
     }
-    await bot.editMessageText(
+
+    await bot.sendMessage(
+        msg.chat.id,
         `
   ╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
   │- <i>Total Users:</i> \`${ulist.length}\`
@@ -899,8 +907,6 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
   ╰❑
     `,
         {
-            chat_id: sentMsg.chat.id,
-            message_id: sentMsg.message_id,
             parse_mode: "HTML",
         }
     );
