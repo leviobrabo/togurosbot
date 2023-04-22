@@ -202,6 +202,11 @@ async function answerUser(message) {
     const receivedMessage = message.sticker?.file_unique_id ?? message.text;
     const chatId = message.chat.id;
 
+    const regex = /^[\/.!]/;
+    if (regex.test(receivedMessage)) {
+        return;
+    }
+
     const sendMessageOptions = { reply_to_message_id: message.message_id };
 
     const audioMatch = audioList.find((audio) =>
