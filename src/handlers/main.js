@@ -79,39 +79,48 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message) {
-    const repliedMessage =
-        message.reply_to_message.sticker?.file_unique_id ??
-        message.reply_to_message.text;
-    const exists = await MessageModel.exists({ message: repliedMessage });
-    if (!exists) {
-        console.log("Mensagem não encontrada no banco de dados");
+async function removeReply(message) {
+    const chatId = message.chat.id;
+    const messageId = message.reply_to_message?.message_id;
+
+    if (!messageId) {
+        await bot.sendMessage(
+            chatId,
+            "Você precisa marcar uma mensagem para remover."
+        );
         return;
     }
 
-    const user_id = message.from.id;
-    if (!is_dev(user_id)) {
-        console.log("Apenas os desenvolvedores podem remover mensagens");
-        return;
-    }
-
-    const result = await MessageModel.findOneAndDelete({
-        message: repliedMessage,
+    const messageObj = await MessageModel.findOne({
+        reply: { $elemMatch: { message_id: messageId } },
     });
-    console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
 
-    const reply = message.reply_to_message;
-    const replyText =
-        reply.sticker?.file_id ??
-        reply.text ??
-        `Resposta de ${reply.from.first_name}`;
-    const index = result.reply.indexOf(replyText);
-    if (index > -1) {
-        result.reply.splice(index, 1);
-        await result.save();
+    if (!messageObj) {
+        await bot.sendMessage(
+            chatId,
+            "Não há nenhuma mensagem associada a este id."
+        );
+        return;
     }
 
-    await message.reply.text("Resposta removida com sucesso!");
+    if (!is_dev(message.from.id)) {
+        await bot.sendMessage(
+            chatId,
+            "Apenas desenvolvedores têm permissão para remover mensagens."
+        );
+        return;
+    }
+
+    const updatedReply = messageObj.reply.filter(
+        (reply) => reply.message_id !== messageId
+    );
+
+    await MessageModel.updateOne(
+        { _id: messageObj._id },
+        { reply: updatedReply }
+    );
+
+    await bot.sendMessage(chatId, "Resposta removida com sucesso!");
 }
 
 const audioList = [
