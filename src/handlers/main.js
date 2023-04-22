@@ -79,23 +79,29 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function deleteMessage(message) {
-    if (!is_dev(message.from.id)) {
-        // o usuário que executou o comando não é um dev, sair da função
+async function removeMessage(message) {
+    const repliedMessage =
+        message.reply_to_message.sticker?.file_unique_id ??
+        message.reply_to_message.text;
+
+    const regex = /^[\/.!]/;
+    if (regex.test(repliedMessage)) {
+        console.log("Mensagem não salva começa com /, . ou !");
         return;
     }
 
-    const repliedMessage = message.reply_to_message.text;
-    const deletedMessage = await MessageModel.findOneAndDelete({
-        message: repliedMessage,
-    });
-
-    if (!deletedMessage) {
-        // a mensagem não foi encontrada no banco de dados, sair da função
+    const isDeveloper = is_dev(message.from.id);
+    if (!isDeveloper) {
+        console.log("Usuário não autorizado");
         return;
     }
 
-    return `Mensagem removida com sucesso: "${deletedMessage.message}"`;
+    const deleted = await MessageModel.deleteOne({ message: repliedMessage });
+    if (deleted.deletedCount === 1) {
+        console.log("Mensagem removida com sucesso");
+    } else {
+        console.log("Não foi possível remover a mensagem");
+    }
 }
 
 const audioList = [
@@ -728,7 +734,7 @@ exports.initHandler = () => {
     bot.onText(/^\/ban/, ban);
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, deleteMessage);
+    bot.onText(/^\/delmsg/, removeMessage);
 };
 
 function timeFormatter(seconds) {
