@@ -289,7 +289,7 @@ async function removeMessage(message) {
     if (message.message_id) {
         bot.sendMessage(
             chatId,
-            `Mensagem deletada com sucesso do banco de dados pelo usuário: <b><a href="tg://user?id=${user.id}">${user.first_name}</a></b>. \n\nObs.: Lembrando que todas as respostas que estavam adicionadas a essa mensagem foram apagadas.`,
+            `Mensagem deletada com sucesso do banco de dados pelo(a) dev: <b><a href="tg://user?id=${user.id}">${user.first_name}</a></b>. \n\nObs.: Lembrando que todas as respostas que estavam adicionadas a essa mensagem foram apagadas.`,
             { parse_mode: "HTML", reply_to_message_id: message.message_id }
         );
     } else {
@@ -384,6 +384,8 @@ async function start(message) {
                 "/groups - permite o bot do chat",
                 "/broadcast ou /bc - envia mensagem para todos usuários",
                 "/ping - veja a latência da VPS",
+                "/delmsg - Apague uma mensagem do banco de dados do bot",
+                "/devs - lista de desenvolvedores do bot ",
             ];
             await bot.editMessageText(
                 "<b>Lista de Comandos:</b> \n\n" + commands.join("\n"),
@@ -744,6 +746,48 @@ async function banned(message) {
     await bot.sendMessage(message.chat.id, messageText, { parse_mode: "HTML" });
 }
 
+async function devs(message) {
+    const chatId = message.chat.id;
+    const userId = message.from.id;
+
+    if (!is_dev(userId)) {
+        bot.sendMessage(
+            chatId,
+            "Este comando só pode ser usado por desenvolvedores!"
+        );
+        return;
+    }
+
+    if (message.chat.type !== "private" || chatId !== userId) {
+        bot.sendMessage(
+            chatId,
+            "Este comando só pode ser usado em um chat privado com o bot!"
+        );
+        return;
+    }
+
+    try {
+        const devUsers = await UserModel.find({ is_dev: true }).lean().exec();
+
+        let message = "<b>Lista de desenvolvedores:</b>\n";
+        devUsers.forEach((user) => {
+            message += `<b>User:</b> <a href="tg://user?id=${user.user_id}">${user.firstname} ${user.lastname}</a>\n`;
+            message += `<b>ID:</b> <code>${user.user_id}</code>\n`;
+            message += `<b>Username:</b> ${
+                user.username ? `@${user.username}` : "Não informado"
+            }\n\n`;
+        });
+
+        bot.sendMessage(chatId, message, { parse_mode: "HTML" });
+    } catch (error) {
+        console.error(error);
+        bot.sendMessage(
+            chatId,
+            "Ocorreu um erro ao buscar a lista de desenvolvedores!"
+        );
+    }
+}
+
 exports.initHandler = () => {
     bot.on("message", main);
     bot.on("polling_error", pollingError);
@@ -757,6 +801,7 @@ exports.initHandler = () => {
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
     bot.onText(/^\/delmsg/, removeMessage);
+    bot.onText(/\/devs/, devs);
 };
 
 function timeFormatter(seconds) {
