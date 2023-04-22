@@ -79,33 +79,34 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function deleteReply(message) {
-    const chatId = message.chat.id;
+async function removeMessage(message) {
+    // Verifica se a mensagem é uma resposta a uma mensagem salva
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
-
-    const isDev = message.from.id === process.env.IS_DEV_ID; // Verifica se o usuário é o is_dev
-
-    if (!isDev) {
-        await bot.sendMessage(
-            chatId,
-            "Somente o is_dev pode usar este comando."
-        );
+    const exists = await MessageModel.exists({ message: repliedMessage });
+    if (!exists) {
+        console.log("Mensagem não encontrada no banco de dados");
         return;
     }
 
-    const exists = await MessageModel.exists({ message: repliedMessage });
-
-    if (exists) {
-        await MessageModel.findOneAndUpdate(
-            { message: repliedMessage },
-            {
-                $pull: { reply: message.reply_to_message.text },
-            }
-        );
-        await bot.sendMessage(chatId, "Resposta removida com sucesso!");
+    // Verifica se o usuário é um is_dev
+    const user_id = message.from.id;
+    if (!is_dev(user_id)) {
+        console.log("Apenas os desenvolvedores podem remover mensagens");
+        return;
     }
+
+    // Remove a mensagem e suas respostas
+    await MessageModel.deleteOne({ message: repliedMessage });
+    console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
+
+    // Remove o reply da mensagem original
+    await message.deleteMessage();
+    console.log("Resposta removida");
+
+    // Envia uma mensagem de sucesso
+    await message.reply.text("Resposta removida com sucesso!");
 }
 
 const audioList = [
@@ -738,7 +739,7 @@ exports.initHandler = () => {
     bot.onText(/^\/ban/, ban);
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, deleteReply);
+    bot.onText(/^\/delmsg/, removeMessage);
 };
 
 function timeFormatter(seconds) {
