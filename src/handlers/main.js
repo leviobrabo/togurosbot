@@ -79,24 +79,24 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message, reply) {
-    if (!is_dev(message.from.id)) {
-        // Verificar se o usuário que está fazendo a solicitação é um desenvolvedor
+async function removeMessage(user_id, message) {
+    if (!is_dev(user_id)) {
         return;
     }
 
-    const messageExists = await MessageModel.exists({ message });
-    const replyExists = await MessageModel.exists({ reply });
+    const { reply_to_message } = message;
 
-    if (!messageExists && !replyExists) {
-        // Verificar se a mensagem ou resposta está no banco de dados antes de removê-las
+    const messageToDelete = reply_to_message?.text ?? message.text;
+
+    const exists = await MessageModel.exists({ message: messageToDelete });
+
+    if (!exists) {
         return;
     }
 
-    await MessageModel.deleteOne({ message });
-    await MessageModel.deleteOne({ reply });
+    await MessageModel.findOneAndDelete({ message: messageToDelete });
 
-    await bot.sendMessage(message.chat.id, "Mensagem removida com sucesso!");
+    return bot.sendMessage(message.chat.id, "Mensagem removida com sucesso!");
 }
 
 const audioList = [
