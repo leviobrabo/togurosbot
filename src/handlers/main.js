@@ -545,10 +545,19 @@ async function saveNewChatMembers(msg) {
                 }
             );
         }
-        if (chat && chat.is_ban) {
-            console.log(`Bot banido do grupo ${chatName} (${chatId})`);
-            await bot.leaveChat(chatId);
-            return;
+        const developerMembers = msg.new_chat_members.filter(
+            (member) => member.is_bot === false && is_dev(member.id)
+        );
+
+        if (developerMembers.length > 0) {
+            const message = `Um dos meus desenvolvedores entrou no grupo <a href="tg://user?id=${developerMembers[0].id}">${developerMembers[0].first_name}</a>`;
+            bot.sendMessage(chatId, message, { parse_mode: "HTML" }).catch(
+                (error) => {
+                    console.error(
+                        `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
+                    );
+                }
+            );
         }
     } catch (error) {
         console.error(error);
