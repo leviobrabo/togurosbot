@@ -81,20 +81,16 @@ async function addReply(message) {
 
 async function removeMessage(message) {
     const repliedMessage =
-        message.reply_to_message.sticker?.file_unique_id ??
-        message.reply_to_message.text;
+        message.reply_to_message &&
+        (message.reply_to_message.sticker?.file_unique_id ??
+            message.reply_to_message.text);
     const replyMessage = message.sticker?.file_id ?? message.text;
-
-    if (message.reply_to_message) {
-        const replyExists = await MessageModel.exists({ reply: replyMessage });
-        if (replyExists) {
-            await MessageModel.deleteOne({ reply: replyMessage });
-            console.log("ReplyMessage removido do banco de dados");
-        }
-    }
-
     const exists = await MessageModel.exists({
-        $or: [{ message: repliedMessage }, { reply: replyMessage }],
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: "" },
+        ],
     });
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
@@ -108,27 +104,21 @@ async function removeMessage(message) {
     }
 
     await MessageModel.deleteMany({
-        $or: [{ message: repliedMessage }, { reply: replyMessage }],
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: "" },
+        ],
     });
     console.log("Mensagem removida do banco de dados");
-    if (message.message_id) {
-        await bot.sendMessage(
-            message.chat.id,
-            "<b>Mensagem removida do banco de dados com sucesso!</b>",
-            {
-                reply_to_message_id: message.message_id,
-                parse_mode: "HTML",
-            }
-        );
-    } else {
-        await bot.sendMessage(
-            message.chat.id,
-            "<b>Mensagem removida com sucesso!</b>",
-            {
-                parse_mode: "HTML",
-            }
-        );
-    }
+
+    await bot.sendMessage(
+        message.chat.id,
+        "<b>Mensagem removida com sucesso!</b>",
+        {
+            parse_mode: "HTML",
+        }
+    );
 }
 
 const audioList = [
