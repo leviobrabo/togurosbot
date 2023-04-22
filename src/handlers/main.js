@@ -79,55 +79,33 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message) {
-    const repliedMessage =
-        message.reply_to_message &&
-        (message.reply_to_message.sticker?.file_unique_id ??
-            message.reply_to_message.text);
-    const replyMessage = message.sticker?.file_id ?? message.text;
-    const botUser = await bot.getMe();
-    const isBotReply =
-        message.reply_to_message &&
-        message.reply_to_message.from.username === botUser.username; // check if the message is a reply sent by the bot
-    const exists = await MessageModel.exists({
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
+async function removeMessage(message, replyMessage) {
+    const chatId = message.chat.id;
+    const isDev = is_dev(message.from.id);
+
+    if (!isDev) {
+        // enviar mensagem informando que somente o is_dev pode executar essa ação
+        await bot.sendMessage(
+            chatId,
+            "Somente o desenvolvedor pode executar esta ação."
+        );
+        return;
+    }
+
+    const deleted = await MessageModel.findOneAndDelete({
+        reply: replyMessage,
     });
-    if (!exists) {
-        console.log("Mensagem não encontrada no banco de dados");
-        return;
+
+    if (deleted) {
+        // enviar mensagem de confirmação de que o reply foi deletado com sucesso
+        await bot.sendMessage(chatId, "Reply deletado com sucesso.");
+    } else {
+        // enviar mensagem informando que não foi encontrado nenhum reply para deletar
+        await bot.sendMessage(
+            chatId,
+            "Não foi encontrado nenhum reply para deletar."
+        );
     }
-
-    const user_id = message.from.id;
-    if (!is_dev(user_id)) {
-        console.log("Apenas os desenvolvedores podem remover mensagens");
-        return;
-    }
-
-    const query = {
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
-    };
-    if (isBotReply) {
-        query["reply"] = replyMessage;
-    }
-
-    await MessageModel.deleteMany(query);
-    console.log("Mensagem removida do banco de dados");
-
-    await bot.sendMessage(
-        message.chat.id,
-        "<b>Mensagem removida com sucesso!</b>",
-        {
-            parse_mode: "HTML",
-        }
-    );
 }
 
 const audioList = [
