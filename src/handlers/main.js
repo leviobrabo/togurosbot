@@ -858,10 +858,24 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
     let block_num = 0;
     for (const { user_id } of ulist) {
         try {
-            await bot.sendMessage(user_id, query_, {
-                disable_web_page_preview: !web_preview,
-                parse_mode: "HTML",
-            });
+            const forwarded = msg.forward_from_chat || msg.forward_from;
+            const forwardedFrom = forwarded
+                ? ` from ${forwarded.title || forwarded.first_name}`
+                : "";
+
+            await bot.forwardMessage(user_id, msg.chat.id, msg.message_id);
+
+            await bot.sendMessage(
+                user_id,
+                `Message from ${
+                    msg.chat.title || msg.chat.first_name
+                }${forwardedFrom}: ${query_}`,
+                {
+                    disable_web_page_preview: !web_preview,
+                    parse_mode: "HTML",
+                }
+            );
+
             sucess_br += 1;
         } catch (err) {
             if (
