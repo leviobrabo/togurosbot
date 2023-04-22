@@ -84,6 +84,13 @@ async function removeMessage(message) {
         message.reply_to_message &&
         (message.reply_to_message.sticker?.file_unique_id ??
             message.reply_to_message.text);
+
+    // Verifica se a mensagem é uma resposta do bot
+    if (!message.from || message.from.id !== bot.botInfo.id) {
+        console.log("Essa mensagem não é uma resposta do bot");
+        return;
+    }
+
     const replyMessage = message.sticker?.file_id ?? message.text;
     const exists = await MessageModel.exists({
         $or: [
@@ -119,7 +126,7 @@ async function removeMessage(message) {
 
     await bot.sendMessage(
         message.chat.id,
-        "<b>Mensagem removida com sucesso!</b>",
+        "<b>Resposta removida com sucesso!</b>",
         {
             parse_mode: "HTML",
         }
