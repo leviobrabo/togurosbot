@@ -284,6 +284,11 @@ async function removeMessage(message) {
     });
 
     console.log("Mensagem removida com sucesso");
+    bot.sendMessage(
+        chatId,
+        `String deletada com sucesso do banco de dados pelo usuário: <b><a href="tg://user?id=${user.id}">${user.first_name}</a></b>.\n <b>Lembrando que todas as respostas que estavam adicionadas a essa mensagem foram apagadas</b>.`,
+        { parse_mode: "HTML" }
+    );
 }
 
 async function start(message) {
