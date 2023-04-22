@@ -98,11 +98,23 @@ async function removeMessage(message) {
     }
 
     // Remove a mensagem e suas respostas
-    await MessageModel.deleteOne({ message: repliedMessage });
-    console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
+    if (message.reply_to_message.text) {
+        await MessageModel.deleteOne({ message: repliedMessage });
+        console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
+    } else {
+        const replyMessage = message.reply_to_message.message_id;
+        await MessageModel.deleteOne({ message: replyMessage });
+        console.log(`Mensagem removida do banco de dados: ${replyMessage}`);
+    }
 
     // Envia uma mensagem de sucesso
-    await message.reply.text("Resposta removida com sucesso!");
+    await bot.sendMessage(
+        message.chat.id,
+        "<b>Resposta removida com sucesso!</b>",
+        {
+            parse_mode: "HTML",
+        }
+    );
 }
 
 const audioList = [
