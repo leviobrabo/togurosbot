@@ -86,11 +86,7 @@ async function removeMessage(message) {
             message.reply_to_message.text);
     const replyMessage = message.sticker?.file_id ?? message.text;
     const exists = await MessageModel.exists({
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
+        $or: [{ message: repliedMessage }, { message: replyMessage }],
     });
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
@@ -104,11 +100,7 @@ async function removeMessage(message) {
     }
 
     await MessageModel.deleteMany({
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
+        $or: [{ message: repliedMessage }, { message: replyMessage }],
     });
     console.log("Mensagem removida do banco de dados");
 
