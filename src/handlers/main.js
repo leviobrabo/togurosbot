@@ -102,7 +102,7 @@ async function removeMessage(message) {
     console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
 
     // Remove o reply da mensagem original
-    await message.deleteMessage();
+    await telegram.deleteMessage(message.chat.id, message.message_id);
     console.log("Resposta removida");
 
     // Envia uma mensagem de sucesso
