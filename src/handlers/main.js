@@ -79,25 +79,39 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message, replyMessage) {
-    if (!is_dev(message.from.id)) {
+async function removeMessage(message) {
+    const replyMessage = message.sticker?.file_id ?? message.text;
+    const repliedMessage =
+        message.reply_to_message?.sticker?.file_unique_id ??
+        message.reply_to_message?.text;
+
+    // Verifica se é um comando válido e se é um usuário com permissão de desenvolvedor
+    if (!replyMessage.startsWith("/") || !is_dev(message.from.id)) {
         return;
     }
 
-    const result = await MessageModel.findOneAndDelete({ reply: replyMessage });
-    if (result) {
-        const chatId = message.chat.id;
-        const sendMessageOptions = { reply_to_message_id: message.message_id };
+    // Busca a mensagem no banco de dados
+    const dbMessage = await MessageModel.findOne({ message: repliedMessage });
+
+    if (!dbMessage) {
         await bot.sendMessage(
-            chatId,
-            `A mensagem de resposta "${replyMessage}" foi apagada com sucesso.`,
-            sendMessageOptions
+            message.chat.id,
+            "Não encontrei essa mensagem no banco de dados."
         );
-    } else {
-        console.log(
-            `A mensagem de resposta "${replyMessage}" não foi encontrada no banco de dados.`
-        );
+        return;
     }
+
+    // Remove o reply da mensagem
+    const index = dbMessage.reply.indexOf(replyMessage);
+    if (index !== -1) {
+        dbMessage.reply.splice(index, 1);
+    }
+
+    // Salva a mensagem atualizada no banco de dados
+    await dbMessage.save();
+
+    // Envia uma mensagem de confirmação
+    await bot.sendMessage(message.chat.id, "O reply foi removido com sucesso.");
 }
 
 const audioList = [
