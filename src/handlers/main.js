@@ -264,17 +264,27 @@ async function removeMessage(message) {
         (message.reply_to_message.sticker?.file_unique_id ??
             message.reply_to_message.text);
     const replyMessage = message.sticker?.file_id ?? message.text;
-    const botUser = await bot.getMe();
-    const isBotReply =
-        message.reply_to_message &&
-        message.reply_to_message.from.username === botUser.username; // check if the message is a reply sent by the bot
     const exists = await MessageModel.exists({
         $or: [
             { message: repliedMessage },
-            { reply: replyMessage },
+            { reply: { $in: [replyMessage] } },
             { reply: "" },
         ],
     });
+
+    const query = {
+        $or: [
+            { message: repliedMessage },
+            { reply: { $in: [replyMessage] } },
+            { reply: "" },
+        ],
+    };
+    if (isBotReply) {
+        query["$and"] = [
+            { reply: { $in: [replyMessage] } },
+            { "reply.0": { $exists: true } },
+        ];
+    }
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
         return;
@@ -284,17 +294,6 @@ async function removeMessage(message) {
     if (!is_dev(user_id)) {
         console.log("Apenas os desenvolvedores podem remover mensagens");
         return;
-    }
-
-    const query = {
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
-    };
-    if (isBotReply) {
-        query["reply"] = replyMessage;
     }
 
     await MessageModel.deleteMany(query);
