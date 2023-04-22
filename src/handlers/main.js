@@ -80,38 +80,54 @@ async function addReply(message) {
 }
 
 async function removeMessage(message) {
-    const replyMessage = message.sticker?.file_id ?? message.text;
     const repliedMessage =
-        message.reply_to_message?.sticker?.file_unique_id ??
-        message.reply_to_message?.text;
-
-    // Verifica se é um comando válido e se é um usuário com permissão de desenvolvedor
-    if (!replyMessage.startsWith("/") || !is_dev(message.from.id)) {
+        message.reply_to_message &&
+        (message.reply_to_message.sticker?.file_unique_id ??
+            message.reply_to_message.text);
+    const replyMessage = message.sticker?.file_id ?? message.text;
+    const botUser = await bot.getMe();
+    const isBotReply =
+        message.reply_to_message &&
+        message.reply_to_message.from.username === botUser.username; // check if the message is a reply sent by the bot
+    const exists = await MessageModel.exists({
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: "" },
+        ],
+    });
+    if (!exists) {
+        console.log("Mensagem não encontrada no banco de dados");
         return;
     }
 
-    // Busca a mensagem no banco de dados
-    const dbMessage = await MessageModel.findOne({ message: repliedMessage });
-
-    if (!dbMessage) {
-        await bot.sendMessage(
-            message.chat.id,
-            "Não encontrei essa mensagem no banco de dados."
-        );
+    const user_id = message.from.id;
+    if (!is_dev(user_id)) {
+        console.log("Apenas os desenvolvedores podem remover mensagens");
         return;
     }
 
-    // Remove o reply da mensagem
-    const index = dbMessage.reply.indexOf(replyMessage);
-    if (index !== -1) {
-        dbMessage.reply.splice(index, 1);
+    const query = {
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage },
+            { reply: "" },
+        ],
+    };
+    if (isBotReply) {
+        query["reply"] = replyMessage;
     }
 
-    // Salva a mensagem atualizada no banco de dados
-    await dbMessage.save();
+    await MessageModel.deleteMany(query);
+    console.log("Mensagem removida do banco de dados");
 
-    // Envia uma mensagem de confirmação
-    await bot.sendMessage(message.chat.id, "O reply foi removido com sucesso.");
+    await bot.sendMessage(
+        message.chat.id,
+        "<b>Mensagem removida com sucesso!</b>",
+        {
+            parse_mode: "HTML",
+        }
+    );
 }
 
 const audioList = [
