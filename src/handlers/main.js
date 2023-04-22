@@ -79,26 +79,27 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeReply(message) {
-    if (!is_dev(message.from.id)) {
-        console.log("Usuário não é desenvolvedor");
-        return;
-    }
-
+async function removeMessage(message) {
+    // Verifica se a mensagem é uma resposta a uma mensagem salva
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
-
-    const messageDoc = await MessageModel.findOne({ message: repliedMessage });
-
-    if (!messageDoc) {
+    const exists = await MessageModel.exists({ message: repliedMessage });
+    if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
         return;
     }
 
-    await messageDoc.updateOne({ $pull: { reply: message.text } });
+    // Verifica se o usuário é um is_dev
+    const user_id = message.from.id;
+    if (!is_dev(user_id)) {
+        console.log("Apenas os desenvolvedores podem remover mensagens");
+        return;
+    }
 
-    console.log("Resposta removida com sucesso");
+    // Remove a mensagem e suas respostas
+    await MessageModel.deleteOne({ message: repliedMessage });
+    console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
 }
 
 const audioList = [
@@ -731,7 +732,7 @@ exports.initHandler = () => {
     bot.onText(/^\/ban/, ban);
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, removeReply);
+    bot.onText(/^\/delmsg/, removeMessage);
 };
 
 function timeFormatter(seconds) {
