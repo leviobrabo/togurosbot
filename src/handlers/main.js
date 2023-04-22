@@ -259,26 +259,25 @@ async function main(message) {
 }
 
 async function removeMessage(message) {
-    if (!is_dev(message.from.id)) return;
+    const user_id = message.from.id;
+    const isDev = is_dev(user_id);
 
-    const repliedMessage =
-        message.reply_to_message &&
-        (message.reply_to_message.sticker?.file_unique_id ??
-            message.reply_to_message.text);
-    const replyMessage = message.sticker?.file_id ?? message.text;
-
-    if (
-        !message.reply_to_message ||
-        message.reply_to_message.from.id !== bot.botInfo.id
-    )
+    if (!isDev) {
+        console.log("Acesso negado!");
         return;
+    }
 
-    await bot.deleteMessage(message.chat.id, message.message_id);
+    const botMessage = message.message_id;
 
-    await MessageModel.deleteOne({
-        message: repliedMessage,
-        reply: { $in: [replyMessage] },
-    });
+    if (message.reply_to_message) {
+        const repliedMessage =
+            message.reply_to_message.sticker?.file_unique_id ??
+            message.reply_to_message.text;
+
+        await MessageModel.findOneAndDelete({ message: repliedMessage });
+    }
+
+    await bot.telegram.deleteMessage(message.chat.id, botMessage);
 }
 
 async function start(message) {
