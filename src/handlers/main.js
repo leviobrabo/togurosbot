@@ -80,34 +80,31 @@ async function addReply(message) {
 }
 
 async function removeMessage(message) {
-    // Verifica se a mensagem é uma resposta a uma mensagem salva
     const repliedMessage =
         message.reply_to_message.sticker?.file_unique_id ??
         message.reply_to_message.text;
-    const exists = await MessageModel.exists({ message: repliedMessage });
+
+    const replyMessage = message.sticker?.file_id ?? message.text;
+
+    const messageToDelete = repliedMessage || replyMessage;
+
+    const exists = await MessageModel.exists({ message: messageToDelete });
     if (!exists) {
         console.log("Mensagem não encontrada no banco de dados");
         return;
     }
 
-    // Verifica se o usuário é um is_dev
     const user_id = message.from.id;
     if (!is_dev(user_id)) {
         console.log("Apenas os desenvolvedores podem remover mensagens");
         return;
     }
 
-    // Remove a mensagem e suas respostas
-    if (message.reply_to_message.text) {
-        await MessageModel.deleteOne({ message: repliedMessage });
-        console.log(`Mensagem removida do banco de dados: ${repliedMessage}`);
-    } else {
-        const replyMessage = message.reply_to_message.message_id;
-        await MessageModel.deleteOne({ message: replyMessage });
-        console.log(`Mensagem removida do banco de dados: ${replyMessage}`);
-    }
+    await MessageModel.deleteMany({
+        $or: [{ message: repliedMessage }, { message: replyMessage }],
+    });
+    console.log(`Mensagem removida do banco de dados: ${messageToDelete}`);
 
-    // Envia uma mensagem de sucesso
     await bot.sendMessage(
         message.chat.id,
         "<b>Resposta removida com sucesso!</b>",
