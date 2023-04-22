@@ -79,51 +79,24 @@ async function addReply(message) {
     createMessageAndAddReply(message);
 }
 
-async function removeMessage(message) {
-    const repliedMessage =
-        message.reply_to_message &&
-        (message.reply_to_message.sticker?.file_unique_id ??
-            message.reply_to_message.text);
-    const replyMessage = message.sticker?.file_id ?? message.text;
-    const exists = await MessageModel.exists({
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
-    });
-    if (!exists) {
-        console.log("Mensagem não encontrada no banco de dados");
+async function removeMessage(message, reply) {
+    if (!is_dev(message.from.id)) {
+        // Verificar se o usuário que está fazendo a solicitação é um desenvolvedor
         return;
     }
 
-    const user_id = message.from.id;
-    if (!is_dev(user_id)) {
-        console.log("Apenas os desenvolvedores podem remover mensagens");
+    const messageExists = await MessageModel.exists({ message });
+    const replyExists = await MessageModel.exists({ reply });
+
+    if (!messageExists && !replyExists) {
+        // Verificar se a mensagem ou resposta está no banco de dados antes de removê-las
         return;
     }
 
-    const query = {
-        $or: [
-            { message: repliedMessage },
-            { reply: replyMessage },
-            { reply: "" },
-        ],
-    };
-    if (replyMessage) {
-        query["reply"] = replyMessage;
-    }
+    await MessageModel.deleteOne({ message });
+    await MessageModel.deleteOne({ reply });
 
-    await MessageModel.deleteMany(query);
-    console.log("Mensagem removida do banco de dados");
-
-    await bot.sendMessage(
-        message.chat.id,
-        "<b>Mensagem removida com sucesso!</b>",
-        {
-            parse_mode: "HTML",
-        }
-    );
+    await bot.sendMessage(message.chat.id, "Mensagem removida com sucesso!");
 }
 
 const audioList = [
