@@ -2,6 +2,7 @@ const { MessageModel } = require("../database");
 const { ChatModel } = require("../database");
 const { UserModel } = require("../database");
 const { bot } = require("../bot");
+const CronJob = require("cron").CronJob;
 const { setTimeout } = require("timers/promises");
 
 require("./errors.js");
