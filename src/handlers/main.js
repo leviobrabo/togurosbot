@@ -175,6 +175,7 @@ async function answerUser(message) {
 
     const regex = /^[\/.!]/;
     if (regex.test(receivedMessage)) {
+        console.log("Mensagem não enviada, começa com /");
         return;
     }
 
