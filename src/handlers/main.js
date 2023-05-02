@@ -183,10 +183,6 @@ async function answerUser(message) {
         await bot.sendChatAction(chatId, "record_audio");
         await bot.sendVoice(chatId, audioMatch.audioUrl, sendMessageOptions);
     } else {
-        const regex = /^[\/.!]/;
-        if (regex.test(receivedMessage)) {
-            return;
-        }
         let exists = await MessageModel.exists({ message: receivedMessage });
 
         if (exists) {
