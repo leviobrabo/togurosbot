@@ -939,37 +939,3 @@ const job = new CronJob(
     true,
     "America/Sao_Paulo"
 );
-
-bot.onText(/\/unbanall/, async (message, match) => {
-    const userId = message.from.id;
-
-    if (message.chat.type !== "private") {
-        await bot.sendMessage(
-            message.chat.id,
-            "Por favor, envie este comando em um chat privado com o bot."
-        );
-        return;
-    }
-
-    if (!is_dev(userId)) {
-        await bot.sendMessage(
-            message.chat.id,
-            "Você não está autorizado a executar este comando."
-        );
-        return;
-    }
-
-    try {
-        const result = await ChatModel.updateMany({}, { is_ban: false });
-        await bot.sendMessage(
-            message.chat.id,
-            `Unbanned ${result.nModified} chats.`
-        );
-    } catch (error) {
-        console.error(error);
-        await bot.sendMessage(
-            message.chat.id,
-            "Ocorreu um erro ao executar o comando. Tente novamente mais tarde."
-        );
-    }
-});
