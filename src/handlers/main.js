@@ -229,6 +229,7 @@ async function saveUserInformation(message) {
             username: user.username,
             firstname: user.first_name,
             lastname: user.last_name,
+            is_dev: false,
         });
 
         await newUser.save();
@@ -241,6 +242,15 @@ async function saveUserInformation(message) {
       }`;
 
         bot.sendMessage(groupId, notificationMessage, { parse_mode: "HTML" });
+    } else {
+        const updatedUser = {
+            username: user.username,
+            firstname: user.first_name,
+            lastname: user.last_name,
+            is_dev: false,
+        };
+        await UserModel.findOneAndUpdate({ user_id: user.id }, updatedUser);
+        console.log(`Usuário ${user.id} atualizado no banco de dados.`);
     }
 }
 
