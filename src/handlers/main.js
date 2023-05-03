@@ -249,7 +249,6 @@ async function saveUserInformation(message) {
             lastname: user.last_name,
         };
         await UserModel.findOneAndUpdate({ user_id: user.id }, updatedUser);
-        console.log(`Usuário ${user.id} atualizado no banco de dados.`);
     }
 }
 
@@ -389,8 +388,7 @@ async function start(message) {
                 "/unban - permite o bot do chat",
                 "/banned - lista de grupos conectados",
                 "/groups - permite o bot do chat",
-                "/bc - envia mensagem para todos os usuários",
-                "/broadcast - encaminha uma mensagem para todos os usuários",
+                "/bc e /broadcast - envia mensagem para todos os usuários",
                 "/ping - veja a latência da VPS",
                 "/delmsg - Apague uma mensagem do banco de dados do bot",
                 "/devs - lista de desenvolvedores do bot ",
@@ -782,16 +780,21 @@ async function devs(message) {
     }
 
     try {
-        const devUsers = await UserModel.find({ is_dev: true }).lean().exec();
+        const devUsers = process.env.DEV_USERS.split(",");
+        let devsData = {};
+        for (let user of devUsers) {
+            const userData = await getUserData(user); // função que busca as informações do usuário no banco de dados
+            if (userData) {
+                devsData[user] = userData;
+            }
+        }
 
         let message = "<b>Lista de desenvolvedores:</b>\n";
-        devUsers.forEach((user) => {
-            message += `<b>User:</b> <a href="tg://user?id=${user.user_id}">${user.firstname} ${user.lastname}</a>\n`;
-            message += `<b>ID:</b> <code>${user.user_id}</code>\n`;
-            message += `<b>Username:</b> ${
-                user.username ? `@${user.username}` : "Não informado"
-            }\n\n`;
-        });
+        for (let user in devsData) {
+            const { firstname, id } = devsData[user];
+            message += `<b>User:</b> ${firstname}\n`;
+            message += `<b>ID:</b> <code>${id}</code>\n`;
+        }
 
         bot.sendMessage(chatId, message, { parse_mode: "HTML" });
     } catch (error) {
@@ -945,28 +948,3 @@ const job = new CronJob(
     true,
     "America/Sao_Paulo"
 );
-
-bot.onText(/\/adddev/, async (msg, match) => {
-    const chatId = msg.chat.id;
-    const user_id = msg.from.id;
-
-    if (!is_dev(userId)) {
-        bot.sendMessage(
-            chatId,
-            "Este comando só pode ser usado por desenvolvedores!"
-        );
-        return;
-    }
-
-    const user = await UserModel.findOne({ user_id });
-
-    if (user.is_dev) {
-        bot.sendMessage(chatId, "Este usuário já é um desenvolvedor!");
-        return;
-    }
-
-    user.is_dev = true;
-    await user.save();
-
-    bot.sendMessage(chatId, "O usuário agora é um desenvolvedor!");
-});
