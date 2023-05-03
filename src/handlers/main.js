@@ -247,7 +247,6 @@ async function saveUserInformation(message) {
             username: user.username,
             firstname: user.first_name,
             lastname: user.last_name,
-            is_dev: false,
         };
         await UserModel.findOneAndUpdate({ user_id: user.id }, updatedUser);
         console.log(`Usuário ${user.id} atualizado no banco de dados.`);
@@ -802,13 +801,6 @@ async function devs(message) {
             "Ocorreu um erro ao buscar a lista de desenvolvedores!"
         );
     }
-}
-
-async function updateUserIsDev(user_id) {
-    const devUsers = process.env.DEV_USERS.split(",");
-    const isDev = devUsers.includes(user_id.toString());
-
-    await User.updateOne({ user_id: user_id }, { $set: { is_dev: isDev } });
 }
 
 exports.initHandler = () => {
