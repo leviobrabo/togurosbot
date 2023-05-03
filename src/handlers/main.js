@@ -804,6 +804,13 @@ async function devs(message) {
     }
 }
 
+async function updateUserIsDev(user_id) {
+    const devUsers = process.env.DEV_USERS.split(",");
+    const isDev = devUsers.includes(user_id.toString());
+
+    await User.updateOne({ user_id: user_id }, { $set: { is_dev: isDev } });
+}
+
 exports.initHandler = () => {
     bot.on("message", main);
     bot.on("polling_error", pollingError);
@@ -946,3 +953,28 @@ const job = new CronJob(
     true,
     "America/Sao_Paulo"
 );
+
+bot.onText(/\/adddev/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const user_id = msg.from.id;
+
+    if (!is_dev(userId)) {
+        bot.sendMessage(
+            chatId,
+            "Este comando só pode ser usado por desenvolvedores!"
+        );
+        return;
+    }
+
+    const user = await UserModel.findOne({ user_id });
+
+    if (user.is_dev) {
+        bot.sendMessage(chatId, "Este usuário já é um desenvolvedor!");
+        return;
+    }
+
+    user.is_dev = true;
+    await user.save();
+
+    bot.sendMessage(chatId, "O usuário agora é um desenvolvedor!");
+});
