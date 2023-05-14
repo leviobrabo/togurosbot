@@ -569,8 +569,8 @@ async function saveNewChatMembers(msg) {
                 (member) => member.id === botUser.id
             );
 
-            if (message.chat.username) {
-                chatusername = `@${message.chat.username}`;
+            if (msg.chat.username) {
+                chatusername = `@${msg.chat.username}`;
             } else {
                 chatusername = "Private Group";
             }
