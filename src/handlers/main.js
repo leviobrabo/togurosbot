@@ -569,10 +569,17 @@ async function saveNewChatMembers(msg) {
                 (member) => member.id === botUser.id
             );
 
+            if (message.chat.username) {
+                chatusername = `@${message.chat.username}`;
+            } else {
+                chatusername = "Private Group";
+            }
+
             if (newMembers.length > 0) {
                 const message = `#Togurosbot #New_Group
     <b>Group:</b> ${chatName}
-    <b>ID:</b> <code>${chatId}</code>`;
+    <b>ID:</b> <code>${chatId}</code>
+    <b>Link:</b> ${chatusername}`;
                 bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
                     (error) => {
                         console.error(
