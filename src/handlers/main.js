@@ -392,6 +392,7 @@ async function start(message) {
                 "/ping - veja a latência da VPS",
                 "/delmsg - Apague uma mensagem do banco de dados do bot",
                 "/devs - lista de desenvolvedores do bot ",
+                "/sendgp - encaminha msg para grupos",
             ];
             await bot.editMessageText(
                 "<b>Lista de Comandos:</b> \n\n" + commands.join("\n"),
@@ -863,6 +864,9 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
     if (!(await is_dev(user_id))) {
         return;
     }
+    if (msg.chat.type !== "private") {
+        return;
+    }
 
     const query = match.input.substring(match[0].length).trim();
     if (!query) {
@@ -957,3 +961,85 @@ const job = new CronJob(
     true,
     "America/Sao_Paulo"
 );
+
+bot.onText(/\/sendgp/, async (msg, match) => {
+    const user_id = msg.from.id;
+    if (!(await is_dev(user_id))) {
+        return;
+    }
+    if (msg.chat.type !== "private") {
+        return;
+    }
+
+    const sentMsg = await bot.sendMessage(msg.chat.id, "<i>Processing...</i>", {
+        parse_mode: "HTML",
+    });
+    const web_preview = match.input.startsWith("-d");
+    const query = web_preview ? match.input.substring(6).trim() : match.input;
+    const ulist = await ChatModel.find().lean().select("chatId");
+    let success_br = 0;
+    let no_success = 0;
+    let block_num = 0;
+
+    // Check if the message is a reply and forward it instead of sending a new message
+    if (msg.reply_to_message) {
+        const replyMsg = msg.reply_to_message;
+        for (const { chatId } of ulist) {
+            try {
+                await bot.forwardMessage(
+                    chatId,
+                    replyMsg.chat.id,
+                    replyMsg.message_id
+                );
+                success_br += 1;
+            } catch (err) {
+                if (
+                    err.response &&
+                    err.response.body &&
+                    err.response.body.error_code === 403
+                ) {
+                    block_num += 1;
+                } else {
+                    no_success += 1;
+                }
+            }
+        }
+    } else {
+        for (const { chatId } of ulist) {
+            try {
+                await bot.sendMessage(chatId, query, {
+                    disable_web_page_preview: !web_preview,
+                    parse_mode: "HTML",
+                    reply_to_message_id: msg.message_id,
+                });
+                success_br += 1;
+            } catch (err) {
+                if (
+                    err.response &&
+                    err.response.body &&
+                    err.response.body.error_code === 403
+                ) {
+                    block_num += 1;
+                } else {
+                    no_success += 1;
+                }
+            }
+        }
+    }
+
+    await bot.editMessageText(
+        `
+  ╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
+  │- <i>Total Group:</i> \`${ulist.length}\`
+  │- <i>Successful:</i> \`${success_br}\`
+  │- <i>Removed:</i> \`${block_num}\`
+  │- <i>Failed:</i> \`${no_success}\`
+  ╰❑
+    `,
+        {
+            chat_id: sentMsg.chat.id,
+            message_id: sentMsg.message_id,
+            parse_mode: "HTML",
+        }
+    );
+});
