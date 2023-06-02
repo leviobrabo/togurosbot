@@ -789,17 +789,11 @@ async function devs(message) {
 
     try {
         const devUsers = process.env.DEV_USERS.split(",");
-        let devsData = {};
-        for (let user of devUsers) {
-            const userData = await getUserData(user); // função que busca as informações do usuário no banco de dados
-            if (userData) {
-                devsData[user] = userData;
-            }
-        }
+        const devsData = await UserModel.find({ is_dev: true }); // Busca os usuários com is_dev: true no banco de dados
 
         let message = "<b>Lista de desenvolvedores:</b>\n";
-        for (let user in devsData) {
-            const { firstname, id } = devsData[user];
+        for (let user of devsData) {
+            const { firstname, id } = user;
             message += `<b>User:</b> ${firstname}\n`;
             message += `<b>ID:</b> <code>${id}</code>\n`;
         }
