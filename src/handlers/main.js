@@ -692,8 +692,19 @@ async function ban(message) {
         return;
     }
 
+    if (chat.is_ban) {
+        await bot.sendMessage(
+            message.chat.id,
+            `Grupo ${chat.chatName} já foi banido.`
+        );
+        return;
+    }
+
     await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: true } });
-    await bot.sendMessage(message.chat.id, `Chat ${chatId} foi banido.`);
+    await bot.sendMessage(
+        message.chat.id,
+        `Grupo ${chat.chatName} foi banido.`
+    );
     await bot.leaveChat(chatId);
 }
 
