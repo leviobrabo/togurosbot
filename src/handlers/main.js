@@ -466,7 +466,10 @@ async function groups(message) {
     }
 
     try {
-        const chats = await ChatModel.find().sort({ chatId: 1 });
+        let chats = await ChatModel.find().sort({ chatId: 1 });
+
+        // Filtra os grupos com is_ban: true
+        chats = chats.filter((chat) => !chat.is_ban);
 
         let contador = 1;
         let chunkSize = 3900 - message.text.length;
@@ -474,15 +477,13 @@ async function groups(message) {
         let currentChunk = "";
 
         for (let chat of chats) {
-            if (chat.chatId < 0) {
-                let groupMessage = `<b>${contador}:</b> <b>Group=</b> ${chat.chatName} || <b>ID:</b> <code>${chat.chatId}</code>\n`;
-                if (currentChunk.length + groupMessage.length > chunkSize) {
-                    messageChunks.push(currentChunk);
-                    currentChunk = "";
-                }
-                currentChunk += groupMessage;
-                contador++;
+            let groupMessage = `<b>${contador}:</b> <b>Group=</b> ${chat.chatName} || <b>ID:</b> <code>${chat.chatId}</code>\n`;
+            if (currentChunk.length + groupMessage.length > chunkSize) {
+                messageChunks.push(currentChunk);
+                currentChunk = "";
             }
+            currentChunk += groupMessage;
+            contador++;
         }
         messageChunks.push(currentChunk);
 
