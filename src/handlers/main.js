@@ -387,7 +387,7 @@ async function start(message) {
                 "/ban - retirar o bot do chat",
                 "/unban - permite o bot do chat",
                 "/banned - lista de grupos conectados",
-                "/groups - permite o bot do chat",
+                "/grupos - permite o bot do chat",
                 "/bc e /broadcast - envia mensagem para todos os usuários",
                 "/ping - veja a latência da VPS",
                 "/delmsg - Apague uma mensagem do banco de dados do bot",
@@ -751,7 +751,7 @@ async function banned(message) {
         return;
     }
 
-    if (!is_dev(userId)) {
+    if (!(await is_dev(userId))) {
         await bot.sendMessage(
             message.chat.id,
             "Você não está autorizado a executar este comando."
@@ -769,14 +769,68 @@ async function banned(message) {
         return;
     }
 
-    let messageText = "<b>Chats banidos:</b>\n";
+    let contador = 1;
+    let chunkSize = 3900;
+    let messageChunks = [];
+    let currentChunk = "<b>Chats banidos:</b>\n";
 
     for (const chat of bannedChats) {
-        messageText += `<b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>\n`;
-        messageText += `<b>ID:</b> <code>${chat.chatId}</code>\n\n`;
+        const groupMessage = `<b>${contador}:</b> <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>\n<b>ID:</b> <code>${chat.chatId}</code>\n\n`;
+        if (currentChunk.length + groupMessage.length > chunkSize) {
+            messageChunks.push(currentChunk);
+            currentChunk = "";
+        }
+        currentChunk += groupMessage;
+        contador++;
     }
+    messageChunks.push(currentChunk);
 
-    await bot.sendMessage(message.chat.id, messageText, { parse_mode: "HTML" });
+    let index = 0;
+
+    const markup = (index) => {
+        return {
+            reply_markup: {
+                inline_keyboard: [
+                    [
+                        {
+                            text: `<< ${index + 1}`,
+                            callback_data: `banned:${index - 1}`,
+                            disabled: index === 0,
+                        },
+                        {
+                            text: `>> ${index + 2}`,
+                            callback_data: `banned:${index + 1}`,
+                            disabled: index === messageChunks.length - 1,
+                        },
+                    ],
+                ],
+            },
+            parse_mode: "HTML",
+        };
+    };
+
+    await bot.sendMessage(message.chat.id, messageChunks[index], markup(index));
+
+    bot.on("callback_query", async (query) => {
+        if (query.data.startsWith("banned:")) {
+            index = Number(query.data.split(":")[1]);
+            if (
+                markup(index).reply_markup &&
+                markup(index).reply_markup.inline_keyboard
+            ) {
+                markup(index).reply_markup.inline_keyboard[0][0].disabled =
+                    index === 0;
+                markup(index).reply_markup.inline_keyboard[0][1].disabled =
+                    index === messageChunks.length - 1;
+            }
+            await bot.editMessageText(messageChunks[index], {
+                chat_id: query.message.chat.id,
+                message_id: query.message.message_id,
+                ...markup(index),
+            });
+            await bot.answerCallbackQuery(query.id);
+        }
+    });
 }
 
 async function devs(message) {
