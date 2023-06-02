@@ -789,13 +789,13 @@ async function devs(message) {
 
     try {
         const devUsers = process.env.DEV_USERS.split(",");
-        const devsData = await UserModel.find({ is_dev: true }); // Busca os usuários com is_dev: true no banco de dados
+        const devsData = await UserModel.find({ is_dev: true });
 
-        let message = "<b>Lista de desenvolvedores:</b>\n";
+        let message = "<b>Lista de desenvolvedores:</b>\n\n";
         for (let user of devsData) {
             const { firstname, id } = user;
-            message += `<b>User:</b> ${firstname}\n`;
-            message += `<b>ID:</b> <code>${id}</code>\n`;
+            message += `<b>User:</b> ${firstname} ||`;
+            message += `<b> ID:</b> <code>${user_id}</code>\n`;
         }
 
         bot.sendMessage(chatId, message, { parse_mode: "HTML" });
@@ -975,7 +975,6 @@ bot.onText(/\/sendgp/, async (msg, match) => {
     let no_success = 0;
     let block_num = 0;
 
-    // Check if the message is a reply and forward it instead of sending a new message
     if (msg.reply_to_message) {
         const replyMsg = msg.reply_to_message;
         for (const { chatId } of ulist) {
@@ -1037,17 +1036,3 @@ bot.onText(/\/sendgp/, async (msg, match) => {
         }
     );
 });
-
-async function updateForwardingForAllGroups() {
-    try {
-        await ChatModel.updateMany({}, { is_ban: false });
-        console.log("banimento desativado para todos os grupos.");
-    } catch (error) {
-        console.error(
-            "Erro ao atualizar o banimento para todos os grupos:",
-            error
-        );
-    }
-}
-
-updateForwardingForAllGroups();
