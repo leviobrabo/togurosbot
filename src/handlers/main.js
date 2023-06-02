@@ -468,7 +468,6 @@ async function groups(message) {
     try {
         let chats = await ChatModel.find().sort({ chatId: 1 });
 
-        // Filtra os grupos com is_ban: true
         chats = chats.filter((chat) => !chat.is_ban);
 
         let contador = 1;
@@ -701,10 +700,28 @@ async function ban(message) {
         return;
     }
 
+    if (msg.chat.username) {
+        chatusername = `@${msg.chat.username}`;
+    } else {
+        chatusername = "Private Group";
+    }
+    const banMessage = `#Togurosbot #Banned
+    <b>Group:</b> ${chat.chatName}
+    <b>ID:</b> <code>${chatId}</code>
+    <b>Link:</b> ${chatUsername}`;
+
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+        (error) => {
+            console.error(
+                `Erro ao enviar mensagem para o grupo ${groupId}: ${error}`
+            );
+        }
+    );
+
     await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: true } });
     await bot.sendMessage(
-        message.chat.id,
-        `Grupo ${chat.chatName} foi banido.`
+        chatId,
+        `Grupo ${chat.chatName} foi banido. Toguro sairá do grupo!`
     );
     await bot.leaveChat(chatId);
 }
@@ -721,7 +738,7 @@ async function unban(message) {
         return;
     }
 
-    if (!is_dev(userId)) {
+    if (!(await is_dev(userId))) {
         await bot.sendMessage(
             message.chat.id,
             "Você não está autorizado a executar este comando."
@@ -732,12 +749,26 @@ async function unban(message) {
     const chat = await ChatModel.findOne({ chatId: chatId });
 
     if (!chat) {
-        await bot.sendMessage(message.chat.id);
+        await bot.sendMessage(
+            message.chat.id,
+            `Nenhum grupo encontrado com o ID ${chatId}.`
+        );
+        return;
+    }
+
+    if (!chat.is_ban) {
+        await bot.sendMessage(
+            message.chat.id,
+            `O grupo ${chat.chatName} já está desbanido ou nunca foi banido.`
+        );
         return;
     }
 
     await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: false } });
-    await bot.sendMessage(message.chat.id, `Chat ${chatId} foi desbanido.`);
+    await bot.sendMessage(
+        message.chat.id,
+        `Grupo ${chat.chatName} foi desbanido.`
+    );
 }
 
 async function banned(message) {
