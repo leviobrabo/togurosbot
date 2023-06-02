@@ -775,7 +775,7 @@ async function banned(message) {
     let currentChunk = "<b>Chats banidos:</b>\n";
 
     for (const chat of bannedChats) {
-        const groupMessage = `<b>${contador}:</b> <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a>\n<b>ID:</b> <code>${chat.chatId}</code>\n\n`;
+        const groupMessage = `<b>${contador}:</b> <b>Group:</b> <a href="tg://resolve?domain=${chat.chatName}&amp;id=${chat.chatId}">${chat.chatName}</a> || <b>ID:</b> <code>${chat.chatId}</code>\n`;
         if (currentChunk.length + groupMessage.length > chunkSize) {
             messageChunks.push(currentChunk);
             currentChunk = "";
