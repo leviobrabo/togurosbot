@@ -688,7 +688,10 @@ async function ban(message) {
     const chat = await ChatModel.findOne({ chatId: chatId });
 
     if (!chat) {
-        await bot.sendMessage(message.chat.id);
+        await bot.sendMessage(
+            message.chat.id,
+            "Nenhum grupo encontrado com o ID informado."
+        );
         return;
     }
 
@@ -700,20 +703,21 @@ async function ban(message) {
         return;
     }
 
+    let chatUsername;
     if (message.chat.username) {
-        chatusername = `@${message.chat.username}`;
+        chatUsername = `@${message.chat.username}`;
     } else {
-        chatusername = "Private Group";
+        chatUsername = "Private Group";
     }
     const banMessage = `#Togurosbot #Banned
     <b>Group:</b> ${chat.chatName}
     <b>ID:</b> <code>${chatId}</code>
     <b>Link:</b> ${chatUsername}`;
 
-    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+    bot.sendMessage(chatId, banMessage, { parse_mode: "HTML" }).catch(
         (error) => {
             console.error(
-                `Erro ao enviar mensagem para o grupo ${groupId}: ${error}`
+                `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
             );
         }
     );
