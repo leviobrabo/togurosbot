@@ -700,8 +700,8 @@ async function ban(message) {
         return;
     }
 
-    if (msg.chat.username) {
-        chatusername = `@${msg.chat.username}`;
+    if (message.chat.username) {
+        chatusername = `@${message.chat.username}`;
     } else {
         chatusername = "Private Group";
     }
