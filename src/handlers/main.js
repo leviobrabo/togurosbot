@@ -941,7 +941,6 @@ exports.initHandler = () => {
     bot.onText(/^\/banned/, banned);
     bot.onText(/^\/delmsg/, removeMessage);
     bot.onText(/\/devs/, devs);
-    bot.on("message", checkBanStatusAndLeaveGroups);
 };
 
 function timeFormatter(seconds) {
@@ -1156,27 +1155,3 @@ bot.onText(/\/sendgp/, async (msg, match) => {
         }
     );
 });
-
-async function checkBanStatusAndLeaveGroups() {
-    try {
-        const botChats = await ChatModel.find();
-
-        for (const chat of botChats) {
-            const chatId = chat.chatId;
-            const chatName = chat.chatName;
-
-            const chatInfo = await bot.getChat(chatId);
-
-            if (chatInfo && chatInfo.is_ban) {
-                console.log(
-                    `Grupo ${chatName} (${chatId}) está banido, saindo do grupo`
-                );
-                await bot.leaveChat(chatId);
-            }
-        }
-    } catch (error) {
-        console.error(error);
-    }
-}
-
-setInterval(checkBanStatusAndLeaveGroups, 10 * 60 * 1000);
