@@ -1161,15 +1161,16 @@ async function checkBanStatusAndLeaveGroups() {
         const botChats = await ChatModel.find();
 
         for (const chat of botChats) {
-            if (chat.is_ban) {
+            const chatId = chat.chatId;
+            const chatName = chat.chatName;
+
+            const messages = await bot.getChatMessages(chatId, { limit: 1 });
+
+            if (messages.totalCount > 0 && chat.is_ban) {
                 console.log(
-                    `Grupo ${chat.chatName} (${chat.chatId}) está banido, saindo do grupo`
+                    `Grupo ${chatName} (${chatId}) saindo toguro agora!`
                 );
-                await bot.sendMessage(
-                    chat.chatId,
-                    `Toguro sairá do grupo e não pode ficar!!`
-                );
-                await bot.leaveChat(chat.chatId);
+                await bot.leaveChat(chatId);
             }
         }
     } catch (error) {
@@ -1177,4 +1178,4 @@ async function checkBanStatusAndLeaveGroups() {
     }
 }
 
-setInterval(checkBanStatusAndLeaveGroups, 5 * 1000);
+setInterval(checkBanStatusAndLeaveGroups, 10 * 60 * 1000);
