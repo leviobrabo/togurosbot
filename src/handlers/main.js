@@ -721,10 +721,7 @@ async function ban(message) {
     );
 
     await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: true } });
-    await bot.sendMessage(
-        chatId,
-        `Grupo ${chat.chatName} foi banido. Toguro sairá do grupo!`
-    );
+    await bot.sendMessage(chatId, `Toguro sairá do grupo e não pode ficar!!`);
     await bot.leaveChat(chatId);
 
     await bot.sendMessage(
@@ -1158,3 +1155,26 @@ bot.onText(/\/sendgp/, async (msg, match) => {
         }
     );
 });
+
+async function checkBanStatusAndLeaveGroups() {
+    try {
+        const botChats = await ChatModel.find();
+
+        for (const chat of botChats) {
+            if (chat.is_ban) {
+                console.log(
+                    `Grupo ${chat.chatName} (${chat.chatId}) está banido, saindo do grupo`
+                );
+                await bot.sendMessage(
+                    chat.chatId,
+                    `Toguro sairá do grupo e não pode ficar!!`
+                );
+                await bot.leaveChat(chat.chatId);
+            }
+        }
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+setInterval(checkBanStatusAndLeaveGroups, 5 * 60 * 60 * 1000);
