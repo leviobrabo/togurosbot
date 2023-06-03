@@ -1165,11 +1165,11 @@ async function checkBanStatusAndLeaveGroups() {
             const chatId = chat.chatId;
             const chatName = chat.chatName;
 
-            const messages = await bot.getChatMessages(chatId, { limit: 1 });
+            const chatInfo = await bot.getChat(chatId);
 
-            if (messages.totalCount > 0 && chat.is_ban) {
+            if (chatInfo && chatInfo.is_ban) {
                 console.log(
-                    `Grupo ${chatName} (${chatId}) saindo toguro agora!`
+                    `Grupo ${chatName} (${chatId}) está banido, saindo do grupo`
                 );
                 await bot.leaveChat(chatId);
             }
