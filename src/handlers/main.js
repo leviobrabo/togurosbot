@@ -714,7 +714,7 @@ async function ban(message) {
     <b>ID:</b> <code>${chatId}</code>
     <b>Link:</b> ${chatUsername}`;
 
-    bot.sendMessage(chatId, banMessage, { parse_mode: "HTML" }).catch(
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
         (error) => {
             console.error(
                 `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
@@ -731,7 +731,7 @@ async function ban(message) {
 
     await bot.sendMessage(
         message.chat.id,
-        `Grupo ${chat.chatName} (${chatId}) foi banido com sucesso.`
+        `Grupo ${chat.chatName} de ID: ${chatId} foi banido com sucesso.`
     );
 }
 
@@ -772,6 +772,25 @@ async function unban(message) {
         );
         return;
     }
+
+    let chatUsername;
+    if (message.chat.username) {
+        chatUsername = `@${message.chat.username}`;
+    } else {
+        chatUsername = "Private Group";
+    }
+    const banMessage = `#Togurosbot #Unban
+    <b>Group:</b> ${chat.chatName}
+    <b>ID:</b> <code>${chatId}</code>
+    <b>Link:</b> ${chatUsername}`;
+
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+        (error) => {
+            console.error(
+                `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
+            );
+        }
+    );
 
     await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: false } });
     await bot.sendMessage(
