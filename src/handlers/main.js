@@ -577,8 +577,8 @@ async function saveNewChatMembers(msg) {
             }
 
             if (newMembers.length > 0) {
-                const totalMembers = await bot.getChatMembersCount(groupId);
-
+                const chatInfo = await bot.getChatAdministrators(chatId);
+                const totalMembers = chatInfo.length;
                 const message = `#Togurosbot #New_Group
                 <b>Group:</b> ${chatName}
                 <b>ID:</b> <code>${chatId}</code>
