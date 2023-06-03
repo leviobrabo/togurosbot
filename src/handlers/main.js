@@ -577,10 +577,15 @@ async function saveNewChatMembers(msg) {
             }
 
             if (newMembers.length > 0) {
+                const chatInfo = await bot.getChat(chatId);
+                const membersCount = chatInfo.members_count;
+
                 const message = `#Togurosbot #New_Group
-            <b>Group:</b> ${chatName}
-            <b>ID:</b> <code>${chatId}</code>
-            <b>Link:</b> ${chatusername}`;
+                <b>Group:</b> ${chatName}
+                <b>ID:</b> <code>${chatId}</code>
+                <b>Link:</b> ${chatusername}
+                <b>Members:</b> ${membersCount}`;
+
                 bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
                     (error) => {
                         console.error(
