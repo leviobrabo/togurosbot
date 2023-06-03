@@ -689,10 +689,7 @@ async function ban(message) {
     const chat = await ChatModel.findOne({ chatId: chatId });
 
     if (!chat) {
-        await bot.sendMessage(
-            message.chat.id,
-            "Nenhum grupo encontrado com o ID informado."
-        );
+        console.log("Nenhum grupo encontrado com o ID informado.");
         return;
     }
 
