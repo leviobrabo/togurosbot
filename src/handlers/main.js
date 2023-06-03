@@ -941,6 +941,7 @@ exports.initHandler = () => {
     bot.onText(/^\/banned/, banned);
     bot.onText(/^\/delmsg/, removeMessage);
     bot.onText(/\/devs/, devs);
+    bot.on("message", checkBanStatusAndLeaveGroups);
 };
 
 function timeFormatter(seconds) {
