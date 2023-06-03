@@ -773,16 +773,16 @@ async function unban(message) {
         return;
     }
 
-    let chatUsername;
+    let devUsername;
     if (message.chat.username) {
-        chatUsername = `@${message.chat.username}`;
+        devUsername = `@${message.chat.username}`;
     } else {
-        chatUsername = "Private Group";
+        devUsername = "Private Group";
     }
     const banMessage = `#Togurosbot #Unban
     <b>Group:</b> ${chat.chatName}
     <b>ID:</b> <code>${chatId}</code>
-    <b>Link:</b> ${chatUsername}`;
+    <b>Dev:</b> ${devUsername}`;
 
     bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
         (error) => {
