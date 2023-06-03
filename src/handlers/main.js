@@ -710,7 +710,7 @@ async function ban(message) {
     const banMessage = `#Togurosbot #Banned
     <b>Group:</b> ${chat.chatName}
     <b>ID:</b> <code>${chatId}</code>
-    <b>Link:</b> ${chatUsername}`;
+    <b>Dev:</b> ${chatUsername}`;
 
     bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
         (error) => {
