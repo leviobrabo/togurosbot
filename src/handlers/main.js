@@ -1177,4 +1177,4 @@ async function checkBanStatusAndLeaveGroups() {
     }
 }
 
-setInterval(checkBanStatusAndLeaveGroups, 5 * 60 * 60 * 1000);
+setInterval(checkBanStatusAndLeaveGroups, 5 * 1000);
