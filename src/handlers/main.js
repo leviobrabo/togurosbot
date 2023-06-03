@@ -911,12 +911,11 @@ async function devs(message) {
     }
 
     try {
-        const devUsers = process.env.DEV_USERS.split(",");
         const devsData = await UserModel.find({ is_dev: true });
 
         let message = "<b>Lista de desenvolvedores:</b>\n\n";
         for (let user of devsData) {
-            const { firstname, id } = user;
+            const { firstname, user_id } = user;
             message += `<b>User:</b> ${firstname} ||`;
             message += `<b> ID:</b> <code>${user_id}</code>\n`;
         }
