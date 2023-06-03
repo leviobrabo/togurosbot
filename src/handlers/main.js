@@ -728,6 +728,11 @@ async function ban(message) {
         `Grupo ${chat.chatName} foi banido. Toguro sairá do grupo!`
     );
     await bot.leaveChat(chatId);
+
+    await bot.sendMessage(
+        message.chat.id,
+        `Grupo ${chat.chatName} (${chatId}) foi banido com sucesso.`
+    );
 }
 
 async function unban(message) {
