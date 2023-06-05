@@ -181,8 +181,10 @@ async function answerUser(message) {
 
     const sendMessageOptions = { reply_to_message_id: message.message_id };
 
-    const audioMatch = audioList.find((audio) =>
-        receivedMessage.includes(audio.keyword)
+    const audioMatch = audioList.find(
+        (audio) =>
+            receivedMessage.trim().toLowerCase() ===
+            audio.keyword.trim().toLowerCase()
     );
 
     if (audioMatch) {
