@@ -4,6 +4,8 @@ const { UserModel } = require("../database");
 const { bot } = require("../bot");
 const CronJob = require("cron").CronJob;
 const { setTimeout } = require("timers/promises");
+const palavrasProibidas = require("./palavrasproibida.json");
+
 
 require("./errors.js");
 const groupId = process.env.groupId;
@@ -12,17 +14,7 @@ function is_dev(user_id) {
     return devUsers.includes(user_id.toString());
 }
 
-const forbiddenWords = [
-    "Puta",
-    "Krl",
-    "Pica",
-    "Vtnc",
-    "Xota",
-    "Pnc",
-    "Caralho",
-    "Porra",
-    "Status",
-];
+const forbiddenWords = palavrasProibidas.palavras_proibidas;
 
 async function createMessageAndAddReply(message) {
     const repliedMessage =
@@ -82,91 +74,184 @@ async function addReply(message) {
 
 const audioList = [
     {
-        keyword: "Em pleno 2022",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/toguro-motivacional.mp3",
+        "keyword": "Em pleno 2022",
+        "audioUrl": "https://www.myinstants.com/media/sounds/toguro-motivacional.mp3"
     },
     {
-        keyword: "Laele",
-        audioUrl: "https://www.myinstants.com/media/sounds/giria-ba-laele.mp3",
+        "keyword": "Laele",
+        "audioUrl": "https://www.myinstants.com/media/sounds/giria-ba-laele.mp3"
     },
     {
-        keyword: "Bom dia, galera",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/ptt-20150301-wa0022.mp3",
+        "keyword": "Bom dia, galera",
+        "audioUrl": "https://www.myinstants.com/media/sounds/ptt-20150301-wa0022.mp3"
     },
     {
-        keyword: "Visão",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/o-sistema-e-foda.mp3",
+        "keyword": "Visão",
+        "audioUrl": "https://www.myinstants.com/media/sounds/o-sistema-e-foda.mp3"
     },
     {
-        keyword: "Ele gosta",
-        audioUrl: "https://www.myinstants.com/media/sounds/tmpd9mca4be.mp3",
+        "keyword": "Ele gosta",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tmpd9mca4be.mp3"
     },
     {
-        keyword: "Foda-se",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/cavalo-rodrigo-faro.mp3",
+        "keyword": "Foda-se",
+        "audioUrl": "https://www.myinstants.com/media/sounds/cavalo-rodrigo-faro.mp3"
     },
     {
-        keyword: "Brabo",
-        audioUrl: "https://www.myinstants.com/media/sounds/tmpd9mca4be.mp3",
+        "keyword": "Brabo",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tmpd9mca4be.mp3"
     },
     {
-        keyword: "Boa noite, galera",
-        audioUrl: "https://www.myinstants.com/media/sounds/tmpycvw5co0.mp3",
+        "keyword": "Boa noite, galera",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tmpycvw5co0.mp3"
     },
     {
-        keyword: "Boa tarde, galera",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/free-converter_B4jyuF8.mp3",
+        "keyword": "Boa tarde, galera",
+        "audioUrl": "https://www.myinstants.com/media/sounds/free-converter_B4jyuF8.mp3"
     },
     {
-        keyword: "SIGMA 🗿 🍷",
-        audioUrl: "https://www.myinstants.com/media/sounds/sigmamusic.mp3",
+        "keyword": "SIGMA 🗿 🍷",
+        "audioUrl": "https://www.myinstants.com/media/sounds/sigmamusic.mp3"
     },
     {
-        keyword: "Errei",
-        audioUrl: "https://www.myinstants.com/media/sounds/errou-rude.mp3",
+        "keyword": "Errei",
+        "audioUrl": "https://www.myinstants.com/media/sounds/errou-rude.mp3"
     },
     {
-        keyword: "Vamos pv",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/o-rei-do-gado-classificacao-abertura-e-encerramento-2015.mp3",
+        "keyword": "Vamos pv",
+        "audioUrl": "https://www.myinstants.com/media/sounds/o-rei-do-gado-classificacao-abertura-e-encerramento-2015.mp3"
     },
     {
-        keyword: "Chama pv",
-        audioUrl: "https://www.myinstants.com/media/sounds/tmp7palvm7o.mp3",
+        "keyword": "Chama pv",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tmp7palvm7o.mp3"
     },
     {
-        keyword: "PV",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/gado-demais-spider.mp3",
+        "keyword": "PV",
+        "audioUrl": "https://www.myinstants.com/media/sounds/gado-demais-spider.mp3"
     },
     {
-        keyword: "Não ligo",
-        audioUrl: "https://www.myinstants.com/media/sounds/corte-rapido.mp3",
+        "keyword": "Não ligo",
+        "audioUrl": "https://www.myinstants.com/media/sounds/corte-rapido.mp3"
     },
     {
-        keyword: "Sou o melhor",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/cr7-eu-sou-o-melhor.mp3",
+        "keyword": "Sou o melhor",
+        "audioUrl": "https://www.myinstants.com/media/sounds/cr7-eu-sou-o-melhor.mp3"
     },
     {
-        keyword: "Treta",
-        audioUrl: "https://www.myinstants.com/media/sounds/tthbp.mp3",
+        "keyword": "Treta",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tthbp.mp3"
     },
     {
-        keyword: "Se fodeu",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/gta-v-death-sound-effect-102.mp3",
+        "keyword": "Se fodeu",
+        "audioUrl": "https://www.myinstants.com/media/sounds/gta-v-death-sound-effect-102.mp3"
     },
     {
-        keyword: "Deu bom",
-        audioUrl:
-            "https://www.myinstants.com/media/sounds/gta-san-andreas-mission-complete-sound-hq.mp3",
+        "keyword": "Deu bom",
+        "audioUrl": "https://www.myinstants.com/media/sounds/gta-san-andreas-mission-complete-sound-hq.mp3"
     },
+    {
+        "keyword": "Pix",
+        "audioUrl": "https://www.myinstants.com/media/sounds/e-o-pix-nada-ainda.mp3"
+    },
+    {
+        "keyword": "Ódio",
+        "audioUrl": "https://www.myinstants.com/media/sounds/que-isso-moreno.mp3"
+    },
+    {
+        "keyword": "Olha pv",
+        "audioUrl": "https://www.myinstants.com/media/sounds/ze-da-manga.mp3"
+    },
+    {
+        "keyword": "Xvideos",
+        "audioUrl": "https://www.myinstants.com/media/sounds/e-o-brazino.mp3"
+    },
+    {
+        "keyword": "Boa tarde!",
+        "audioUrl": "https://www.myinstants.com/media/sounds/boa-tarde-bando-de-calabresos.mp3"
+    },
+    {
+        "keyword": "Que isso?",
+        "audioUrl": "https://www.myinstants.com/media/sounds/abriu-o-audio.mp3"
+    },
+    {
+        "keyword": "Não entendi",
+        "audioUrl": "https://www.myinstants.com/media/sounds/como-e-amigo.mp3"
+    },
+    {
+        "keyword": "rsrs",
+        "audioUrl": "https://www.myinstants.com/media/sounds/sabe-porque-as-meninas-dao-maior-valor-na-risada-de-ladrao-mp3cut.mp3"
+    },
+    {
+        "keyword": "Fds",
+        "audioUrl": "https://www.myinstants.com/media/sounds/wndzp.mp3"
+    },
+    {
+        "keyword": "Vou ganhar",
+        "audioUrl": "https://www.myinstants.com/media/sounds/louco-e-sonhador.mp3"
+    },
+    {
+        "keyword": "Toguroo",
+        "audioUrl": "https://www.myinstants.com/media/sounds/manda-a-foto.mp3"
+    },
+    {
+        "keyword": "Áudio",
+        "audioUrl": "https://www.myinstants.com/media/sounds/para-de-mandar-audio-to-na-ucrania.mp3"
+    },
+    {
+        "keyword": "Errei",
+        "audioUrl": "https://www.myinstants.com/media/sounds/neymar-errei-fui-moleque.mp3"
+    },
+    {
+        "keyword": "Sai",
+        "audioUrl": "https://www.myinstants.com/media/sounds/calma-cnpjoto.mp3"
+    },
+    {
+        "keyword": "Treta",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tao-fugindo-do-foco-do-grupo-online-audio-converter.mp3"
+    },
+    {
+        "keyword": "Faz o L",
+        "audioUrl": "https://www.myinstants.com/media/sounds/faz-o-l-vinheta.mp3"
+    },
+    {
+        "keyword": "Zap",
+        "audioUrl": "https://www.myinstants.com/media/sounds/olha-a-mensagem-a.mp3"
+    },
+    {
+        "keyword": "Suspeito",
+        "audioUrl": "https://www.myinstants.com/media/sounds/among.mp3"
+    },
+    {
+        "keyword": "Te amo",
+        "audioUrl": "https://www.myinstants.com/media/sounds/george-micael-wham-careless-whisper-1.mp3"
+    },
+    {
+        "keyword": "Triste kkk",
+        "audioUrl": "https://www.myinstants.com/media/sounds/tf_nemesis.mp3"
+    }
+];
+
+const photoList = [
+    {
+        "keyword": "serioo",
+        "photoUrl": "https://i.imgur.com/ZbpaTP2.jpeg"
+    },
+    {
+        "keyword": "chorei aqui",
+        "photoUrl": "https://i.imgur.com/TqViPC5.jpeg"
+    },
+    {
+        "keyword": "nem te conto",
+        "photoUrl": "https://i.imgur.com/5Ckk5yw.jpeg"
+    },
+    {
+        "keyword": "nao fala comigo",
+        "photoUrl": "https://i.imgur.com/SEdyQ3a.jpeg"
+    },
+    {
+        "keyword": "diculpa",
+        "photoUrl": "https://i.imgur.com/QumF8HB.jpeg"
+    }
 ];
 
 async function answerUser(message) {
@@ -181,37 +266,66 @@ async function answerUser(message) {
 
     const sendMessageOptions = { reply_to_message_id: message.message_id };
 
-    const audioMatch = audioList.find(
-        (audio) => receivedMessage === audio.keyword
-    );
-
+    // Check if the received message matches any audio keywords
+    const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
     if (audioMatch) {
-        await bot.sendChatAction(chatId, "record_audio");
-        await bot.sendVoice(chatId, audioMatch.audioUrl, sendMessageOptions);
+        try {
+            await bot.sendChatAction(chatId, "record_audio");
+            const audioPromise = bot.sendVoice(chatId, audioMatch.audioUrl, sendMessageOptions);
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Timeout: Audio operation took too long.'));
+                }, 6000); // Set your desired timeout in milliseconds (5 seconds in this example)
+            });
+
+            await Promise.race([audioPromise, timeoutPromise]);
+        } catch (error) {
+            console.error("Error sending audio:", error);
+        }
     } else {
-        let exists = await MessageModel.exists({ message: receivedMessage });
+        // Check if the received message matches any photo keywords
+        const photoMatch = photoList.find((photo) => receivedMessage === photo.keyword);
+        if (photoMatch) {
+            try {
+                await bot.sendChatAction(chatId, "upload_photo");
+                const photoPromise = bot.sendPhoto(chatId, photoMatch.photoUrl, sendMessageOptions);
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => {
+                        reject(new Error('Timeout: Photo operation took too long.'));
+                    }, 6000); // Set your desired timeout in milliseconds (5 seconds in this example)
+                });
 
-        if (exists) {
-            const { reply } = await MessageModel.findOne({
-                message: receivedMessage,
-            });
-            const replyToSend = reply[Math.floor(Math.random() * reply.length)];
+                await Promise.race([photoPromise, timeoutPromise]);
+            } catch (error) {
+                console.error("Error sending photo:", error);
+            }
+        } else {
+            // Check the database
+            const exists = await MessageModel.exists({ message: receivedMessage });
+            if (exists) {
+                const { reply } = await MessageModel.findOne({
+                    message: receivedMessage,
+                });
+                const replyToSend = reply[Math.floor(Math.random() * reply.length)];
 
-            if (!replyToSend) return;
+                if (!replyToSend) return;
 
-            const typingTime = 50 * replyToSend?.length || 6000;
+                const typingTime = 50 * replyToSend?.length || 6000;
 
-            await bot.sendChatAction(chatId, "typing");
-            setTimeout(typingTime).then(async () => {
-                await bot
-                    .sendSticker(chatId, replyToSend, sendMessageOptions)
-                    .catch((error) =>
-                        bot.sendMessage(chatId, replyToSend, sendMessageOptions)
-                    );
-            });
+                await bot.sendChatAction(chatId, "typing");
+                setTimeout(typingTime).then(async () => {
+                    await bot
+                        .sendSticker(chatId, replyToSend, sendMessageOptions)
+                        .catch((error) =>
+                            bot.sendMessage(chatId, replyToSend, sendMessageOptions)
+                        );
+                });
+            }
         }
     }
 }
+
+
 
 async function saveUserInformation(message) {
     const chatId = message.chat.id;
@@ -237,9 +351,8 @@ async function saveUserInformation(message) {
         const notificationMessage = `#Togurosbot #New_User
       <b>User:</b> <a href="tg://user?id=${user.id}">${user.first_name}</a>
       <b>ID:</b> <code>${user.id}</code>
-      <b>Username:</b> ${
-          user.username ? `@${user.username}` : "Não informado"
-      }`;
+      <b>Username:</b> ${user.username ? `@${user.username}` : "Não informado"
+            }`;
 
         bot.sendMessage(groupId, notificationMessage, { parse_mode: "HTML" });
     } else {
