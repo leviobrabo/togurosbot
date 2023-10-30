@@ -4,7 +4,7 @@ dotenv.config();
 const { initHandler } = require("./handlers/main.js");
 
 const http = require("http");
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 8081;
 
 initHandler();
 
