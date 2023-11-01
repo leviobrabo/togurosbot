@@ -775,9 +775,6 @@ async function removeLeftChatMember(msg) {
     }
 }
 
-function pollingError(error) {
-    console.log(error);
-}
 
 async function ban(message) {
     const userId = message.from.id;
@@ -1040,21 +1037,7 @@ async function devs(message) {
     }
 }
 
-exports.initHandler = () => {
-    bot.on("message", main);
-    bot.on("polling_error", pollingError);
-    bot.on("message", saveUserInformation);
-    bot.onText(/^\/start$/, start);
-    bot.onText(/^\/stats$/, stats);
-    bot.onText(/^\/grupos$/, groups);
-    bot.on("new_chat_members", saveNewChatMembers);
-    bot.on("left_chat_member", removeLeftChatMember);
-    bot.onText(/^\/ban/, ban);
-    bot.onText(/^\/unban/, unban);
-    bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, removeMessage);
-    bot.onText(/\/devs/, devs);
-};
+
 
 function timeFormatter(seconds) {
     const hours = Math.floor(seconds / 3600);
@@ -1268,3 +1251,47 @@ bot.onText(/\/sendgp/, async (msg, match) => {
         }
     );
 });
+
+function sendBotOnlineMessage() {
+    console.log(`Toguro iniciado com sucesso...`);
+    bot.sendMessage(groupId, `#Toguro #ONLINE\n\nBot is now playing ...`);
+}
+
+function sendBotOfflineMessage() {
+    console.log(`Toguro encerrado com sucesso...`);
+    bot.sendMessage(groupId, `#Toguro #OFFLINE\n\nBot is now off ...`)
+        .then(() => {
+            process.exit(0); // Encerra o processo do bot após enviar a mensagem offline
+        })
+        .catch((error) => {
+            console.error("Erro ao enviar mensagem de desligamento:", error);
+            process.exit(1); // Encerra o processo com um código de erro
+        });
+}
+
+
+function pollingError(error) {
+    console.log(error);
+}
+
+process.on('SIGINT', () => {
+    sendBotOfflineMessage();
+});
+
+sendBotOnlineMessage();
+
+exports.initHandler = () => {
+    bot.on("message", main);
+    bot.on("polling_error", pollingError);
+    bot.on("message", saveUserInformation);
+    bot.onText(/^\/start$/, start);
+    bot.onText(/^\/stats$/, stats);
+    bot.onText(/^\/grupos$/, groups);
+    bot.on("new_chat_members", saveNewChatMembers);
+    bot.on("left_chat_member", removeLeftChatMember);
+    bot.onText(/^\/ban/, ban);
+    bot.onText(/^\/unban/, unban);
+    bot.onText(/^\/banned/, banned);
+    bot.onText(/^\/delmsg/, removeMessage);
+    bot.onText(/\/devs/, devs);
+};
