@@ -14,6 +14,15 @@ function is_dev(user_id) {
     return devUsers.includes(user_id.toString());
 }
 
+function leaveGroupOnError(err, chatId) {
+    if (err.response && err.response.description === 'ETELEGRAM: 400 Solicitação incorreta: CHAT_WRITE_FORBIDDEN') {
+        bot.sendMessage(chatId, 'Desculpe, não tenho permissão para enviar mensagens neste grupo. Vou sair agora.');
+        bot.leaveChat(chatId);
+    } else {
+        console.error(err);
+    }
+}
+
 const forbiddenWords = palavrasProibidas.palavras_proibidas;
 
 async function createMessageAndAddReply(message) {
@@ -313,17 +322,17 @@ async function answerUser(message) {
                 const typingTime = 50 * replyToSend?.length || 6000;
 
                 await bot.sendChatAction(chatId, "typing");
-                setTimeout(typingTime).then(async () => {
-                    await bot
-                        .sendSticker(chatId, replyToSend, sendMessageOptions)
+                setTimeout(() => {
+                    bot.sendSticker(chatId, replyToSend, sendMessageOptions)
                         .catch((error) =>
                             bot.sendMessage(chatId, replyToSend, sendMessageOptions)
                         );
-                });
+                }, typingTime);
             }
         }
     }
 }
+
 
 
 
@@ -1271,6 +1280,10 @@ function sendBotOfflineMessage() {
 
 
 function pollingError(error) {
+    if (error.response.description === 'ETELEGRAM: 400 Solicitação incorreta: CHAT_WRITE_FORBIDDEN') {
+        leaveGroupOnError(error, chatId);
+    }
+
     console.log(error);
 }
 
