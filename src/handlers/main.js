@@ -314,17 +314,17 @@ async function answerUser(message) {
                 const typingTime = 50 * replyToSend?.length || 6000;
 
                 await bot.sendChatAction(chatId, "typing");
-                setTimeout(() => {
-                    bot.sendSticker(chatId, replyToSend, sendMessageOptions)
+                setTimeout(typingTime).then(async () => {
+                    await bot
+                        .sendSticker(chatId, replyToSend, sendMessageOptions)
                         .catch((error) =>
                             bot.sendMessage(chatId, replyToSend, sendMessageOptions)
                         );
-                }, typingTime);
+                });
             }
         }
     }
 }
-
 
 
 
