@@ -6,7 +6,7 @@
 [![](https://img.shields.io/badge/Suporte-@kylorensbot-1b2069)](https://t.me/kylorensbot)
 [![](https://img.shields.io/badge/Telegram-Update_Toguro-blue)](https://t.me/togurovisao)
 
-Toguro envia mensagem, que são aprendidas a partir das mensagem envidas no chat... envia áudios e stickers...
+Toguro envia mensagem, que são aprendidas a partir das mensagem envidas no chat... envia áudios, fotos e stickers...
 
 Demostração:
 
