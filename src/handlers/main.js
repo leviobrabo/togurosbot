@@ -258,8 +258,10 @@ const photoList = [
 async function answerUser(message) {
     const receivedMessage = message.sticker?.file_unique_id ?? message.text;
     const chatId = message.chat.id;
+    const chatType = message.chat.type;
     const chat = await ChatModel.findOne({ chatId });
-    const topic = chat.thread_id;
+    const topic = chat ? chat.thread_id : "";
+
 
     const regex = /^[\/.!]/;
     if (regex.test(receivedMessage)) {
@@ -268,6 +270,7 @@ async function answerUser(message) {
     }
 
     const sendMessageOptions = { reply_to_message_id: message.message_id };
+
     if (message.chat.type !== 'group' && message.chat.type !== 'supergroup') {
 
         if (topic && topic !== "") {
