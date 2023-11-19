@@ -268,9 +268,11 @@ async function answerUser(message) {
     }
 
     const sendMessageOptions = { reply_to_message_id: message.message_id };
+    if (message.chat.type !== 'group' && message.chat.type !== 'supergroup') {
 
-    if (topic && topic !== "") {
-        sendMessageOptions.message_thread_id = topic;
+        if (topic && topic !== "") {
+            sendMessageOptions.message_thread_id = topic;
+        }
     }
 
     const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
