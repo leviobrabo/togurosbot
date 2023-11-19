@@ -15,6 +15,54 @@ function is_dev(user_id) {
     return devUsers.includes(user_id.toString());
 }
 
+const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
+
+async function containsURLInDatabase() {
+    try {
+        const messagesWithUrls = await MessageModel.find({
+            $or: [
+                { message: { $regex: urlRegex } },
+                { reply: { $elemMatch: { $regex: urlRegex } } }
+            ]
+        });
+
+        return messagesWithUrls;
+    } catch (error) {
+        throw new Error(`Erro ao verificar URLs no banco de dados: ${error.message}`);
+    }
+}
+
+async function removeURLsFromDatabaseMessages() {
+    try {
+        const messagesWithUrls = await containsURLInDatabase();
+
+        const promises = messagesWithUrls.map(async (message) => {
+            let { message: originalMessage, reply } = message;
+
+            // Remove URLs da mensagem original
+            originalMessage = originalMessage.replace(urlRegex, '');
+
+            // Remove URLs de cada resposta na matriz
+            reply = reply.map((replyText) => replyText.replace(urlRegex, ''));
+
+            // Remove respostas vazias da matriz
+            reply = reply.filter((text) => text.trim() !== '');
+
+            // Atualiza as mensagens no banco de dados
+            await MessageModel.findOneAndUpdate(
+                { _id: message._id },
+                { $set: { message: originalMessage, reply: reply } }
+            );
+        });
+
+        await Promise.all(promises);
+
+        console.log('URLs removidas das mensagens no banco de dados com sucesso.');
+    } catch (error) {
+        throw new Error(`Erro ao remover URLs das mensagens no banco de dados: ${error.message}`);
+    }
+}
+
 
 const forbiddenWords = palavrasProibidas.palavras_proibidas;
 
@@ -27,6 +75,13 @@ async function createMessageAndAddReply(message) {
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage) || regex.test(replyMessage)) {
         console.log("Mensagem não salva começa com /");
+        return;
+    }
+
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
+
+    if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
+        console.log("Mensagem não salva contém um link ou URL");
         return;
     }
 
@@ -56,6 +111,13 @@ async function addReply(message) {
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage)) {
         console.log("Mensagem não salva começa com /, . ou !");
+        return;
+    }
+
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
+
+    if (urlRegex.test(repliedMessage)) {
+        console.log("Mensagem não salva contém um link ou URL");
         return;
     }
 
