@@ -279,7 +279,7 @@ async function answerUser(message) {
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => {
                         reject(new Error('Timeout: Audio operation took too long.'));
-                    }, 6000);
+                    }, 6000); 
                 });
 
                 await Promise.race([audioPromise, timeoutPromise]);
@@ -295,7 +295,7 @@ async function answerUser(message) {
                     const timeoutPromise = new Promise((_, reject) => {
                         setTimeout(() => {
                             reject(new Error('Timeout: Photo operation took too long.'));
-                        }, 6000);
+                        }, 6000); 
                     });
 
                     await Promise.race([photoPromise, timeoutPromise]);
@@ -305,7 +305,9 @@ async function answerUser(message) {
             } else {
                 const exists = await MessageModel.exists({ message: receivedMessage });
                 if (exists) {
-                    const { reply } = await MessageModel.findOne({ message: receivedMessage });
+                    const { reply } = await MessageModel.findOne({
+                        message: receivedMessage,
+                    });
                     const replyToSend = reply[Math.floor(Math.random() * reply.length)];
 
                     if (!replyToSend) return;
@@ -313,17 +315,18 @@ async function answerUser(message) {
                     const typingTime = 50 * replyToSend?.length || 6000;
 
                     await bot.sendChatAction(chatId, "typing");
-                    setTimeout(async () => {
-                        try {
-                            await bot.sendSticker(chatId, replyToSend, sendMessageOptions);
-                        } catch (error) {
-                            await bot.sendMessage(chatId, replyToSend, sendMessageOptions);
-                        }
-                    }, typingTime);
+                    setTimeout(typingTime).then(async () => {
+                        await bot
+                            .sendSticker(chatId, replyToSend, sendMessageOptions)
+                            .catch((error) =>
+                                bot.sendMessage(chatId, replyToSend, sendMessageOptions)
+                            );
+                    });
                 }
             }
         }
-    } catch (error) {
+    }
+    catch (error) {
         if (error.message.includes("CHAT_WRITE_FORBIDDEN")) {
             console.error("Erro: CHAT_WRITE_FORBIDDEN. O bot sairá do grupo.");
             await bot.leaveChat(chatId);
