@@ -257,29 +257,31 @@ const photoList = [
 ];
 
 async function answerUser(message) {
-    try {
-        const receivedMessage = message.sticker?.file_unique_id ?? message.text;
-        const chatId = message.chat.id;
-        const chatType = message.chat.type;
-        const chat = await ChatModel.findOne({ chatId });
-        const topic = chat ? chat.thread_id : "";
+    const receivedMessage = message.sticker?.file_unique_id ?? message.text;
+    const chatId = message.chat.id;
+    const chatType = message.chat.type;
+    const chat = await ChatModel.findOne({ chatId });
+    const topic = chat ? chat.thread_id : "";
 
-        const regex = /^[\/.!]/;
-        if (regex.test(receivedMessage)) {
-            console.log("Mensagem não enviada, começa com /");
-            return;
+
+    const regex = /^[\/.!]/;
+    if (regex.test(receivedMessage)) {
+        console.log("Mensagem não enviada, começa com /");
+        return;
+    }
+
+    const sendMessageOptions = { reply_to_message_id: message.message_id };
+
+    if (message.chat.type !== 'group' && message.chat.type !== 'supergroup') {
+
+        if (topic && topic !== "") {
+            sendMessageOptions.message_thread_id = topic;
         }
+    }
 
-        const sendMessageOptions = { reply_to_message_id: message.message_id };
-
-        if (message.chat.type !== 'group' && message.chat.type !== 'supergroup') {
-            if (topic && topic !== "") {
-                sendMessageOptions.message_thread_id = topic;
-            }
-        }
-
-        const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
-        if (audioMatch) {
+    const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
+    if (audioMatch) {
+        try {
             await bot.sendChatAction(chatId, "record_audio");
             const audioPromise = bot.sendVoice(chatId, audioMatch.audioUrl, sendMessageOptions);
             const timeoutPromise = new Promise((_, reject) => {
@@ -289,9 +291,13 @@ async function answerUser(message) {
             });
 
             await Promise.race([audioPromise, timeoutPromise]);
-        } else {
-            const photoMatch = photoList.find((photo) => receivedMessage === photo.keyword);
-            if (photoMatch) {
+        } catch (error) {
+            console.error("Error sending audio:", error);
+        }
+    } else {
+        const photoMatch = photoList.find((photo) => receivedMessage === photo.keyword);
+        if (photoMatch) {
+            try {
                 await bot.sendChatAction(chatId, "upload_photo");
                 const photoPromise = bot.sendPhoto(chatId, photoMatch.photoUrl, sendMessageOptions);
                 const timeoutPromise = new Promise((_, reject) => {
@@ -301,39 +307,31 @@ async function answerUser(message) {
                 });
 
                 await Promise.race([photoPromise, timeoutPromise]);
-            } else {
-                const exists = await MessageModel.exists({ message: receivedMessage });
-                if (exists) {
-                    const { reply } = await MessageModel.findOne({ message: receivedMessage });
-                    const replyToSend = reply[Math.floor(Math.random() * reply.length)];
-
-                    if (replyToSend) {
-                        const typingTime = 50 * replyToSend.length || 6000;
-                        await bot.sendChatAction(chatId, "typing");
-                        setTimeout(async () => {
-                            try {
-                                await bot.sendSticker(chatId, replyToSend, sendMessageOptions);
-                            } catch (error) {
-                                await bot.sendMessage(chatId, replyToSend, sendMessageOptions);
-                            }
-                        }, typingTime);
-                    }
-                }
-            }
-        }
-    } catch (error) {
-        if (error.message.includes("CHAT_WRITE_FORBIDDEN")) {
-            console.error("Erro: CHAT_WRITE_FORBIDDEN. O bot sairá do grupo.");
-            await bot.leaveChat(chatId);
-
-            try {
-                await ChatModel.deleteOne({ chatId: chatId });
-                console.log("Grupo removido do banco de dados.");
-            } catch (dbError) {
-                console.error("Erro ao remover o grupo do banco de dados:", dbError);
+            } catch (error) {
+                console.error("Error sending photo:", error);
             }
         } else {
-            console.error("Erro ao enviar mensagem:", error);
+            const exists = await MessageModel.exists({ message: receivedMessage });
+            if (exists) {
+                const { reply } = await MessageModel.findOne({
+                    message: receivedMessage,
+                });
+                const replyToSend = reply[Math.floor(Math.random() * reply.length)];
+
+                if (!replyToSend) return;
+
+                const typingTime = 50 * replyToSend?.length || 6000;
+
+                await bot.sendChatAction(chatId, "typing");
+                setTimeout(typingTime).then(async () => {
+                    await bot
+                        .sendSticker(chatId, replyToSend, sendMessageOptions)
+                        .catch((error) =>
+                            bot.sendMessage(chatId, replyToSend, sendMessageOptions)
+                        );
+                });
+
+            }
         }
     }
 }
