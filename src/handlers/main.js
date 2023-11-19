@@ -267,10 +267,11 @@ async function answerUser(message) {
         return;
     }
 
-    const sendMessageOptions = {
-        reply_to_message_id: message.message_id,
-        message_thread_id: topic
-    };
+    const sendMessageOptions = { reply_to_message_id: message.message_id };
+
+    if (topic && topic !== "") {
+        sendMessageOptions.message_thread_id = topic;
+    }
 
     const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
     if (audioMatch) {
@@ -1133,7 +1134,7 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
     );
 });
 
-bot.onText(/\/addtopic/, async (msg) => {
+bot.onText(/\/settopic/, async (msg) => {
     if (msg.chat.type !== 'group' && msg.chat.type !== 'supergroup') {
         await bot.sendMessage(msg.chat.id, 'Esse comando só pode ser enviado em grupos.');
         return;
@@ -1172,7 +1173,7 @@ bot.onText(/\/addtopic/, async (msg) => {
     }
 });
 
-bot.onText(/\/remtopic/, async (msg) => {
+bot.onText(/\/cleartopic/, async (msg) => {
     if (msg.chat.type !== 'group' && msg.chat.type !== 'supergroup') {
         await bot.sendMessage(msg.chat.id, 'Esse comando só pode ser enviado em grupos.');
         return;
@@ -1199,18 +1200,6 @@ bot.onText(/\/remtopic/, async (msg) => {
         console.error("Error clearing thread ID:", error.message);
     }
 });
-
-async function setEmptyThreadIdsForAllGroups() {
-    try {
-        await ChatModel.updateMany({}, { $set: { thread_id: "" } });
-        console.log("Thread IDs foram definidos como vazio para todos os grupos com sucesso.");
-    } catch (error) {
-        console.error("Erro ao definir os Thread IDs como vazio para os grupos:", error);
-    }
-}
-
-// Chame a função para definir os thread_ids vazios para todos os grupos
-setEmptyThreadIdsForAllGroups();
 
 const channelStatusId = process.env.channelStatusId;
 
