@@ -15,6 +15,10 @@ const ChatSchema = new Schema({
         default: false,
         unique: false,
     },
+    thread_id: {
+        type: Number,
+        required: false,
+    }
 });
 
 module.exports = ChatSchema;

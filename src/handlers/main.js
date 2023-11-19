@@ -258,6 +258,8 @@ const photoList = [
 async function answerUser(message) {
     const receivedMessage = message.sticker?.file_unique_id ?? message.text;
     const chatId = message.chat.id;
+    const chat = await ChatModel.findOne({ chatId });
+    const topic = chat.thread_id;
 
     const regex = /^[\/.!]/;
     if (regex.test(receivedMessage)) {
@@ -265,9 +267,11 @@ async function answerUser(message) {
         return;
     }
 
-    const sendMessageOptions = { reply_to_message_id: message.message_id };
+    const sendMessageOptions = {
+        reply_to_message_id: message.message_id,
+        message_thread_id: topic
+    };
 
-    // Check if the received message matches any audio keywords
     const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
     if (audioMatch) {
         try {
@@ -276,7 +280,7 @@ async function answerUser(message) {
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => {
                     reject(new Error('Timeout: Audio operation took too long.'));
-                }, 6000); // Set your desired timeout in milliseconds (5 seconds in this example)
+                }, 6000);
             });
 
             await Promise.race([audioPromise, timeoutPromise]);
@@ -284,7 +288,6 @@ async function answerUser(message) {
             console.error("Error sending audio:", error);
         }
     } else {
-        // Check if the received message matches any photo keywords
         const photoMatch = photoList.find((photo) => receivedMessage === photo.keyword);
         if (photoMatch) {
             try {
@@ -293,7 +296,7 @@ async function answerUser(message) {
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => {
                         reject(new Error('Timeout: Photo operation took too long.'));
-                    }, 6000); // Set your desired timeout in milliseconds (5 seconds in this example)
+                    }, 6000);
                 });
 
                 await Promise.race([photoPromise, timeoutPromise]);
@@ -301,7 +304,6 @@ async function answerUser(message) {
                 console.error("Error sending photo:", error);
             }
         } else {
-            // Check the database
             const exists = await MessageModel.exists({ message: receivedMessage });
             if (exists) {
                 const { reply } = await MessageModel.findOne({
@@ -1131,6 +1133,85 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
     );
 });
 
+bot.onText(/\/addtopic/, async (msg) => {
+    if (msg.chat.type !== 'group' && msg.chat.type !== 'supergroup') {
+        await bot.sendMessage(msg.chat.id, 'Esse comando só pode ser enviado em grupos.');
+        return;
+    }
+
+    const chatId = msg.chat.id;
+    const threadId = msg.reply_to_message?.message_thread_id;
+    const chatMember = await bot.getChatMember(chatId, msg.from.id);
+
+    if (chatMember.status !== 'administrator' && chatMember.status !== 'creator') {
+        return;
+    }
+
+    try {
+        const chat = await ChatModel.findOne({ chatId });
+
+        if (chat) {
+            if (threadId === "1" || !threadId) {
+                chat.thread_id = null;
+                await chat.save();
+                bot.sendMessage(chatId, "Será enviado as mensagens aqui!", { message_thread_id: chat.thread_id });
+            } else if (chat.thread_id === threadId) {
+                bot.sendMessage(chatId, `Este chat já está definido para receber mensagens do tópico ${threadId}.`, { message_thread_id: chat.thread_id });
+            } else {
+                chat.thread_id = threadId;
+                await chat.save();
+                bot.sendMessage(chatId, `Thread ID atualizado para: ${threadId}, agora você receberá as mensagens históricas aqui!`, { message_thread_id: threadId });
+            }
+        } else {
+            const newChat = new ChatModel({ chatId, thread_id: threadId });
+            await newChat.save();
+            bot.sendMessage(chatId, `Thread ID definido como: ${threadId}, agora você receberá as mensagens históricas aqui!`, { message_thread_id: threadId });
+        }
+    } catch (error) {
+        console.error("Error setting thread ID:", error.message);
+    }
+});
+
+bot.onText(/\/remtopic/, async (msg) => {
+    if (msg.chat.type !== 'group' && msg.chat.type !== 'supergroup') {
+        await bot.sendMessage(msg.chat.id, 'Esse comando só pode ser enviado em grupos.');
+        return;
+    }
+
+    const chatId = msg.chat.id;
+    const chatMember = await bot.getChatMember(chatId, msg.from.id);
+
+    if (chatMember.status !== 'administrator' && chatMember.status !== 'creator') {
+        return;
+    }
+
+    try {
+        const chat = await ChatModel.findOne({ chatId });
+
+        if (chat) {
+            chat.thread_id = null;
+            await chat.save();
+            bot.sendMessage(chatId, "O tópico foi removido com sucesso. Você não receberá mais mensagens históricas aqui.");
+        } else {
+            bot.sendMessage(chatId, "Você ainda não definiu um tópico. Use o comando /settopic para definir um tópico.");
+        }
+    } catch (error) {
+        console.error("Error clearing thread ID:", error.message);
+    }
+});
+
+async function setEmptyThreadIdsForAllGroups() {
+    try {
+        await ChatModel.updateMany({}, { $set: { thread_id: "" } });
+        console.log("Thread IDs foram definidos como vazio para todos os grupos com sucesso.");
+    } catch (error) {
+        console.error("Erro ao definir os Thread IDs como vazio para os grupos:", error);
+    }
+}
+
+// Chame a função para definir os thread_ids vazios para todos os grupos
+setEmptyThreadIdsForAllGroups();
+
 const channelStatusId = process.env.channelStatusId;
 
 async function sendStatus() {
@@ -1280,6 +1361,8 @@ process.on('SIGINT', () => {
 });
 
 sendBotOnlineMessage();
+
+
 
 exports.initHandler = () => {
     bot.on("message", main);
