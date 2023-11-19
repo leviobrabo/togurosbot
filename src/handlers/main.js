@@ -9,6 +9,7 @@ const palavrasProibidas = require("./palavrasproibida.json");
 
 require("./errors.js");
 const groupId = process.env.groupId;
+
 function is_dev(user_id) {
     const devUsers = process.env.DEV_USERS.split(",");
     return devUsers.includes(user_id.toString());
@@ -35,7 +36,7 @@ async function createMessageAndAddReply(message) {
                 repliedMessage.includes(word) || replyMessage.includes(word)
         )
     ) {
-        console.log("Mensagem proibida, não será salva");
+        // console.log("Mensagem proibida, não será salva");
         return;
     }
 
