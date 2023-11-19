@@ -279,7 +279,7 @@ async function answerUser(message) {
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => {
                         reject(new Error('Timeout: Audio operation took too long.'));
-                    }, 6000); 
+                    }, 6000);
                 });
 
                 await Promise.race([audioPromise, timeoutPromise]);
@@ -295,7 +295,7 @@ async function answerUser(message) {
                     const timeoutPromise = new Promise((_, reject) => {
                         setTimeout(() => {
                             reject(new Error('Timeout: Photo operation took too long.'));
-                        }, 6000); 
+                        }, 6000);
                     });
 
                     await Promise.race([photoPromise, timeoutPromise]);
@@ -338,9 +338,23 @@ async function answerUser(message) {
                 console.error("Erro ao remover o grupo do banco de dados:", dbError);
             }
         } else {
-            console.error("Erro ao enviar mensagem:", error);
+            if (error.message.includes("not enough rights to send text messages to the chat")) {
+                console.error("Erro: not enough rights to send text messages to the chat.");
+                await bot.leaveChat(chatId);
+
+                try {
+                    await ChatModel.deleteOne({ chatId: chatId });
+                    console.log("Grupo removido do banco de dados.");
+                } catch (dbError) {
+                    console.error("Erro ao remover o grupo do banco de dados:", dbError);
+                }
+            } else {
+                console.error("Erro ao enviar mensagem:", error);
+
+            }
         }
     }
+
 }
 
 
