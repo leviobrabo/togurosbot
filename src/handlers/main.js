@@ -338,23 +338,9 @@ async function answerUser(message) {
                 console.error("Erro ao remover o grupo do banco de dados:", dbError);
             }
         } else {
-            if (error.message.includes("not enough rights to send text messages to the chat")) {
-                console.error("Erro: not enough rights to send text messages to the chat.");
-                await bot.leaveChat(chatId);
-
-                try {
-                    await ChatModel.deleteOne({ chatId: chatId });
-                    console.log("Grupo removido do banco de dados.");
-                } catch (dbError) {
-                    console.error("Erro ao remover o grupo do banco de dados:", dbError);
-                }
-            } else {
-                console.error("Erro ao enviar mensagem:", error);
-
-            }
+            console.error("Erro ao enviar mensagem:", error);
         }
     }
-
 }
 
 
