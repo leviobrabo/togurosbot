@@ -8,7 +8,7 @@ const port = process.env.PORT || 8081;
 
 initHandler();
 
-const server = http.createServer((request, reponse) =>
+const server = http.createServer((request, response) =>
     response.writeHead(200, { "content-type": "aplication/json" })
 );
 

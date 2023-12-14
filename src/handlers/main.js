@@ -9,6 +9,7 @@ const palavrasProibidas = require("./palavrasproibida.json");
 
 require("./errors.js");
 const groupId = process.env.groupId;
+
 function is_dev(user_id) {
     const devUsers = process.env.DEV_USERS.split(",");
     return devUsers.includes(user_id.toString());
@@ -28,13 +29,20 @@ async function createMessageAndAddReply(message) {
         return;
     }
 
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
+
+    if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
+        console.log("Mensagem não salva contém um link ou URL");
+        return;
+    }
+
     if (
         forbiddenWords.some(
             (word) =>
                 repliedMessage.includes(word) || replyMessage.includes(word)
         )
     ) {
-        console.log("Mensagem proibida, não será salva");
+        // console.log("Mensagem proibida, não será salva");
         return;
     }
 
@@ -54,6 +62,13 @@ async function addReply(message) {
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage)) {
         console.log("Mensagem não salva começa com /, . ou !");
+        return;
+    }
+
+    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
+
+    if (urlRegex.test(repliedMessage)) {
+        console.log("Mensagem não salva contém um link ou URL");
         return;
     }
 
@@ -257,74 +272,89 @@ const photoList = [
 async function answerUser(message) {
     const receivedMessage = message.sticker?.file_unique_id ?? message.text;
     const chatId = message.chat.id;
+    const chat = await ChatModel.findOne({ chatId });
 
-    const regex = /^[\/.!]/;
-    if (regex.test(receivedMessage)) {
-        console.log("Mensagem não enviada, começa com /");
-        return;
-    }
+    try {
 
-    const sendMessageOptions = { reply_to_message_id: message.message_id };
-
-    // Check if the received message matches any audio keywords
-    const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
-    if (audioMatch) {
-        try {
-            await bot.sendChatAction(chatId, "record_audio");
-            const audioPromise = bot.sendVoice(chatId, audioMatch.audioUrl, sendMessageOptions);
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => {
-                    reject(new Error('Timeout: Audio operation took too long.'));
-                }, 6000); // Set your desired timeout in milliseconds (5 seconds in this example)
-            });
-
-            await Promise.race([audioPromise, timeoutPromise]);
-        } catch (error) {
-            console.error("Error sending audio:", error);
+        const regex = /^[\/.!]/;
+        if (regex.test(receivedMessage)) {
+            console.log("Mensagem não enviada, começa com /");
+            return;
         }
-    } else {
-        // Check if the received message matches any photo keywords
-        const photoMatch = photoList.find((photo) => receivedMessage === photo.keyword);
-        if (photoMatch) {
+
+        const sendMessageOptions = { reply_to_message_id: message.message_id };
+
+        const audioMatch = audioList.find((audio) => receivedMessage === audio.keyword);
+        if (audioMatch) {
             try {
-                await bot.sendChatAction(chatId, "upload_photo");
-                const photoPromise = bot.sendPhoto(chatId, photoMatch.photoUrl, sendMessageOptions);
+                await bot.sendChatAction(chatId, "record_audio");
+                const audioPromise = bot.sendVoice(chatId, audioMatch.audioUrl, sendMessageOptions);
                 const timeoutPromise = new Promise((_, reject) => {
                     setTimeout(() => {
-                        reject(new Error('Timeout: Photo operation took too long.'));
-                    }, 6000); // Set your desired timeout in milliseconds (5 seconds in this example)
+                        reject(new Error('Timeout: Audio operation took too long.'));
+                    }, 6000);
                 });
 
-                await Promise.race([photoPromise, timeoutPromise]);
+                await Promise.race([audioPromise, timeoutPromise]);
             } catch (error) {
-                console.error("Error sending photo:", error);
+                console.error("Error sending audio:", error);
             }
         } else {
-            // Check the database
-            const exists = await MessageModel.exists({ message: receivedMessage });
-            if (exists) {
-                const { reply } = await MessageModel.findOne({
-                    message: receivedMessage,
-                });
-                const replyToSend = reply[Math.floor(Math.random() * reply.length)];
+            const photoMatch = photoList.find((photo) => receivedMessage === photo.keyword);
+            if (photoMatch) {
+                try {
+                    await bot.sendChatAction(chatId, "upload_photo");
+                    const photoPromise = bot.sendPhoto(chatId, photoMatch.photoUrl, sendMessageOptions);
+                    const timeoutPromise = new Promise((_, reject) => {
+                        setTimeout(() => {
+                            reject(new Error('Timeout: Photo operation took too long.'));
+                        }, 6000);
+                    });
 
-                if (!replyToSend) return;
+                    await Promise.race([photoPromise, timeoutPromise]);
+                } catch (error) {
+                    console.error("Error sending photo:", error);
+                }
+            } else {
+                const exists = await MessageModel.exists({ message: receivedMessage });
+                if (exists) {
+                    const { reply } = await MessageModel.findOne({
+                        message: receivedMessage,
+                    });
+                    const replyToSend = reply[Math.floor(Math.random() * reply.length)];
 
-                const typingTime = 50 * replyToSend?.length || 6000;
+                    if (!replyToSend) return;
 
-                await bot.sendChatAction(chatId, "typing");
-                setTimeout(typingTime).then(async () => {
-                    await bot
-                        .sendSticker(chatId, replyToSend, sendMessageOptions)
-                        .catch((error) =>
-                            bot.sendMessage(chatId, replyToSend, sendMessageOptions)
-                        );
-                });
+                    const typingTime = 50 * replyToSend?.length || 6000;
+
+                    await bot.sendChatAction(chatId, "typing");
+                    setTimeout(typingTime).then(async () => {
+                        await bot
+                            .sendSticker(chatId, replyToSend, sendMessageOptions)
+                            .catch((error) =>
+                                bot.sendMessage(chatId, replyToSend, sendMessageOptions)
+                            );
+                    });
+                }
             }
+        }
+    }
+    catch (error) {
+        if (error.message.includes("CHAT_WRITE_FORBIDDEN")) {
+            console.error("Erro: CHAT_WRITE_FORBIDDEN. O bot sairá do grupo.");
+            await bot.leaveChat(chatId);
+
+            try {
+                await ChatModel.deleteOne({ chatId: chatId });
+                console.log("Grupo removido do banco de dados.");
+            } catch (dbError) {
+                console.error("Erro ao remover o grupo do banco de dados:", dbError);
+            }
+        } else {
+            console.error("Erro ao enviar mensagem:", error);
         }
     }
 }
-
 
 
 async function saveUserInformation(message) {
@@ -775,9 +805,6 @@ async function removeLeftChatMember(msg) {
     }
 }
 
-function pollingError(error) {
-    console.log(error);
-}
 
 async function ban(message) {
     const userId = message.from.id;
@@ -1040,21 +1067,7 @@ async function devs(message) {
     }
 }
 
-exports.initHandler = () => {
-    bot.on("message", main);
-    bot.on("polling_error", pollingError);
-    bot.on("message", saveUserInformation);
-    bot.onText(/^\/start$/, start);
-    bot.onText(/^\/stats$/, stats);
-    bot.onText(/^\/grupos$/, groups);
-    bot.on("new_chat_members", saveNewChatMembers);
-    bot.on("left_chat_member", removeLeftChatMember);
-    bot.onText(/^\/ban/, ban);
-    bot.onText(/^\/unban/, unban);
-    bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, removeMessage);
-    bot.onText(/\/devs/, devs);
-};
+
 
 function timeFormatter(seconds) {
     const hours = Math.floor(seconds / 3600);
@@ -1146,6 +1159,7 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
         }
     );
 });
+
 
 const channelStatusId = process.env.channelStatusId;
 
@@ -1268,3 +1282,49 @@ bot.onText(/\/sendgp/, async (msg, match) => {
         }
     );
 });
+
+function sendBotOnlineMessage() {
+    console.log(`Toguro iniciado com sucesso...`);
+    bot.sendMessage(groupId, `#Toguro #ONLINE\n\nBot is now playing ...`);
+}
+
+function sendBotOfflineMessage() {
+    console.log(`Toguro encerrado com sucesso...`);
+    bot.sendMessage(groupId, `#Toguro #OFFLINE\n\nBot is now off ...`)
+        .then(() => {
+            process.exit(0); // Encerra o processo do bot após enviar a mensagem offline
+        })
+        .catch((error) => {
+            console.error("Erro ao enviar mensagem de desligamento:", error);
+            process.exit(1); // Encerra o processo com um código de erro
+        });
+}
+
+
+function pollingError(error) {
+    console.log(error);
+}
+
+process.on('SIGINT', () => {
+    sendBotOfflineMessage();
+});
+
+sendBotOnlineMessage();
+
+
+
+exports.initHandler = () => {
+    bot.on("message", main);
+    bot.on("polling_error", pollingError);
+    bot.on("message", saveUserInformation);
+    bot.onText(/^\/start$/, start);
+    bot.onText(/^\/stats$/, stats);
+    bot.onText(/^\/grupos$/, groups);
+    bot.on("new_chat_members", saveNewChatMembers);
+    bot.on("left_chat_member", removeLeftChatMember);
+    bot.onText(/^\/ban/, ban);
+    bot.onText(/^\/unban/, unban);
+    bot.onText(/^\/banned/, banned);
+    bot.onText(/^\/delmsg/, removeMessage);
+    bot.onText(/\/devs/, devs);
+};
