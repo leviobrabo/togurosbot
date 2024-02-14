@@ -384,7 +384,7 @@ async function saveUserInformation(message) {
       <b>Username:</b> ${user.username ? `@${user.username}` : "Não informado"
             }`;
 
-        bot.sendMessage(groupId, notificationMessage, { parse_mode: "HTML" });
+        bot.sendMessage(groupId, notificationMessage, { parse_mode: "HTML" }, reply_to_message_id=38567);
     } else {
         const updatedUser = {
             username: user.username,
@@ -725,7 +725,7 @@ async function saveNewChatMembers(msg) {
                 <b>ID:</b> <code>${chatId}</code>
                 <b>Link:</b> ${chatusername}`;
 
-                bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
+                bot.sendMessage(groupId, message, { parse_mode: "HTML" }, reply_to_message_id=38567).catch(
                     (error) => {
                         console.error(
                             `Erro ao enviar mensagem para o grupo ${groupId}: ${error}`
@@ -852,7 +852,7 @@ async function ban(message) {
     <b>ID:</b> <code>${chatId}</code>
     <b>Dev:</b> ${chatUsername}`;
 
-    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }, reply_to_message_id=38567).catch(
         (error) => {
             console.error(
                 `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
@@ -919,7 +919,7 @@ async function unban(message) {
     <b>ID:</b> <code>${chatId}</code>
     <b>Dev:</b> ${devUsername}`;
 
-    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }, reply_to_message_id=38567).catch(
         (error) => {
             console.error(
                 `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
@@ -1285,12 +1285,12 @@ bot.onText(/\/sendgp/, async (msg, match) => {
 
 function sendBotOnlineMessage() {
     console.log(`Toguro iniciado com sucesso...`);
-    bot.sendMessage(groupId, `#Toguro #ONLINE\n\nBot is now playing ...`);
+    bot.sendMessage(groupId, `#Toguro #ONLINE\n\nBot is now playing ...`, reply_to_message_id=38567);
 }
 
 function sendBotOfflineMessage() {
     console.log(`Toguro encerrado com sucesso...`);
-    bot.sendMessage(groupId, `#Toguro #OFFLINE\n\nBot is now off ...`)
+    bot.sendMessage(groupId, `#Toguro #OFFLINE\n\nBot is now off ...`, reply_to_message_id=38567)
         .then(() => {
             process.exit(0); // Encerra o processo do bot após enviar a mensagem offline
         })
