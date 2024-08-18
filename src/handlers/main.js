@@ -98,6 +98,7 @@ async function addReply(message) {
     } else {
         createMessageAndAddReply(message);
     }
+    }
 
 const audioList = [
     {
