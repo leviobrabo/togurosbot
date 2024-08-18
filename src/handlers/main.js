@@ -6,6 +6,7 @@ const CronJob = require("cron").CronJob;
 const { setTimeout } = require("timers/promises");
 const palavrasProibidas = require("./palavrasproibida.json");
 
+
 require("./errors.js");
 const groupId = process.env.groupId;
 
@@ -24,7 +25,7 @@ async function createMessageAndAddReply(message) {
 
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage) || regex.test(replyMessage)) {
-        console.log("Mensagem não salva começa com /, . ou !");
+        console.log("Mensagem não salva começa com /");
         return;
     }
 
@@ -41,24 +42,16 @@ async function createMessageAndAddReply(message) {
                 repliedMessage.includes(word) || replyMessage.includes(word)
         )
     ) {
-        console.log("Mensagem proibida, será deletada.");
-        await MessageModel.deleteOne({ message: repliedMessage });
+        // console.log("Mensagem proibida, não será salva");
         return;
     }
 
-    const exists = await MessageModel.exists({ message: repliedMessage });
+    const Message = new MessageModel({
+        message: repliedMessage,
+        reply: replyMessage,
+    });
 
-    if (exists) {
-        console.log("Mensagem já existe, será deletada.");
-        await MessageModel.deleteOne({ message: repliedMessage });
-    } else {
-        const Message = new MessageModel({
-            message: repliedMessage,
-            reply: replyMessage,
-        });
-
-        await Message.save();
-    }
+    await Message.save();
 }
 
 async function addReply(message) {
@@ -79,26 +72,20 @@ async function addReply(message) {
         return;
     }
 
-    if (
-        forbiddenWords.some(
-            (word) =>
-                repliedMessage.includes(word) || replyMessage.includes(word)
-        )
-    ) {
-        console.log("Mensagem proibida, será deletada.");
-        await MessageModel.deleteOne({ message: repliedMessage });
-        return;
-    }
-
     const exists = await MessageModel.exists({ message: repliedMessage });
 
-    if (exists) {
-        console.log("Mensagem já existe, será deletada.");
-        await MessageModel.deleteOne({ message: repliedMessage });
-    } else {
-        createMessageAndAddReply(message);
-    }
-    }
+    if (exists)
+        return await MessageModel.findOneAndUpdate(
+            { message: repliedMessage },
+            {
+                $push: {
+                    reply: message.sticker?.file_id ?? message.text,
+                },
+            }
+        );
+
+    createMessageAndAddReply(message);
+}
 
 const audioList = [
     {
