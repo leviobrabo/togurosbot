@@ -6,7 +6,6 @@ const CronJob = require("cron").CronJob;
 const { setTimeout } = require("timers/promises");
 const palavrasProibidas = require("./palavrasproibida.json");
 
-
 require("./errors.js");
 const groupId = process.env.groupId;
 
@@ -19,13 +18,13 @@ const forbiddenWords = palavrasProibidas.palavras_proibidas;
 
 async function createMessageAndAddReply(message) {
     const repliedMessage =
-        message.reply_to_message.sticker?.file_unique_id ??
-        message.reply_to_message.text;
+        message.reply_to_message?.sticker?.file_unique_id ??
+        message.reply_to_message?.text;
     const replyMessage = message.sticker?.file_id ?? message.text;
 
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage) || regex.test(replyMessage)) {
-        console.log("Mensagem não salva começa com /");
+        console.log("Mensagem não salva começa com /, . ou !");
         return;
     }
 
@@ -33,6 +32,7 @@ async function createMessageAndAddReply(message) {
 
     if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
         console.log("Mensagem não salva contém um link ou URL");
+        await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
 
@@ -42,7 +42,8 @@ async function createMessageAndAddReply(message) {
                 repliedMessage.includes(word) || replyMessage.includes(word)
         )
     ) {
-        // console.log("Mensagem proibida, não será salva");
+        console.log("Mensagem proibida, não será salva");
+        await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
 
@@ -54,10 +55,26 @@ async function createMessageAndAddReply(message) {
     await Message.save();
 }
 
+async function deleteMessageIfExists(repliedMessage, replyMessage) {
+    const message = await MessageModel.findOne({
+        $or: [
+            { message: repliedMessage },
+            { reply: replyMessage }
+        ]
+    });
+
+    if (message) {
+        console.log("Mensagem proibida ou com link encontrada no banco de dados, será deletada.");
+        await MessageModel.deleteOne({ _id: message._id });
+    }
+}
+
 async function addReply(message) {
     const repliedMessage =
-        message.reply_to_message.sticker?.file_unique_id ??
-        message.reply_to_message.text;
+        message.reply_to_message?.sticker?.file_unique_id ??
+        message.reply_to_message?.text;
+
+    const replyMessage = message.sticker?.file_id ?? message.text;
 
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage)) {
@@ -67,24 +84,37 @@ async function addReply(message) {
 
     const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
 
-    if (urlRegex.test(repliedMessage)) {
+    if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
         console.log("Mensagem não salva contém um link ou URL");
+        await deleteMessageIfExists(repliedMessage, replyMessage);
+        return;
+    }
+
+    if (
+        forbiddenWords.some(
+            (word) =>
+                repliedMessage.includes(word) || replyMessage.includes(word)
+        )
+    ) {
+        console.log("Mensagem proibida, não será salva");
+        await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
 
     const exists = await MessageModel.exists({ message: repliedMessage });
 
-    if (exists)
-        return await MessageModel.findOneAndUpdate(
+    if (exists) {
+        await MessageModel.findOneAndUpdate(
             { message: repliedMessage },
             {
                 $push: {
-                    reply: message.sticker?.file_id ?? message.text,
+                    reply: replyMessage,
                 },
             }
         );
-
-    createMessageAndAddReply(message);
+    } else {
+        await createMessageAndAddReply(message);
+    }
 }
 
 const audioList = [
@@ -384,7 +414,7 @@ async function saveUserInformation(message) {
       <b>Username:</b> ${user.username ? `@${user.username}` : "Não informado"
             }`;
 
-        bot.sendMessage(groupId, notificationMessage, { parse_mode: "HTML" });
+        bot.sendMessage(groupId, notificationMessage, { parse_mode: "HTML", reply_to_message_id: 38567});
     } else {
         const updatedUser = {
             username: user.username,
@@ -725,7 +755,7 @@ async function saveNewChatMembers(msg) {
                 <b>ID:</b> <code>${chatId}</code>
                 <b>Link:</b> ${chatusername}`;
 
-                bot.sendMessage(groupId, message, { parse_mode: "HTML" }).catch(
+                bot.sendMessage(groupId, message, { parse_mode: "HTML", reply_to_message_id: 38567}).catch(
                     (error) => {
                         console.error(
                             `Erro ao enviar mensagem para o grupo ${groupId}: ${error}`
@@ -852,7 +882,7 @@ async function ban(message) {
     <b>ID:</b> <code>${chatId}</code>
     <b>Dev:</b> ${chatUsername}`;
 
-    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML", reply_to_message_id: 38567}).catch(
         (error) => {
             console.error(
                 `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
@@ -919,7 +949,7 @@ async function unban(message) {
     <b>ID:</b> <code>${chatId}</code>
     <b>Dev:</b> ${devUsername}`;
 
-    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML" }).catch(
+    bot.sendMessage(groupId, banMessage, { parse_mode: "HTML", reply_to_message_id: 38567}).catch(
         (error) => {
             console.error(
                 `Erro ao enviar mensagem para o grupo ${chatId}: ${error}`
@@ -1285,12 +1315,12 @@ bot.onText(/\/sendgp/, async (msg, match) => {
 
 function sendBotOnlineMessage() {
     console.log(`Toguro iniciado com sucesso...`);
-    bot.sendMessage(groupId, `#Toguro #ONLINE\n\nBot is now playing ...`);
+    bot.sendMessage(groupId, `#Toguro #ONLINE\n\nBot is now playing ...`, { reply_to_message_id: 38567});
 }
 
 function sendBotOfflineMessage() {
     console.log(`Toguro encerrado com sucesso...`);
-    bot.sendMessage(groupId, `#Toguro #OFFLINE\n\nBot is now off ...`)
+    bot.sendMessage(groupId, `#Toguro #OFFLINE\n\nBot is now off ...`, { reply_to_message_id: 38567})
         .then(() => {
             process.exit(0); // Encerra o processo do bot após enviar a mensagem offline
         })
