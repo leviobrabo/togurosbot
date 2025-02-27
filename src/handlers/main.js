@@ -24,14 +24,12 @@ async function createMessageAndAddReply(message) {
 
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage) || regex.test(replyMessage)) {
-        console.log("Mensagem não salva começa com /, . ou !");
         return;
     }
 
     const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
 
     if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
-        console.log("Mensagem não salva contém um link ou URL");
         await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
@@ -42,7 +40,6 @@ async function createMessageAndAddReply(message) {
                 repliedMessage.includes(word) || replyMessage.includes(word)
         )
     ) {
-        console.log("Mensagem proibida, não será salva");
         await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
@@ -64,7 +61,6 @@ async function deleteMessageIfExists(repliedMessage, replyMessage) {
     });
 
     if (message) {
-        console.log("Mensagem proibida ou com link encontrada no banco de dados, será deletada.");
         await MessageModel.deleteOne({ _id: message._id });
     }
 }
@@ -78,14 +74,12 @@ async function addReply(message) {
 
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage)) {
-        console.log("Mensagem não salva começa com /, . ou !");
         return;
     }
 
     const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
 
     if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
-        console.log("Mensagem não salva contém um link ou URL");
         await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
@@ -96,7 +90,6 @@ async function addReply(message) {
                 repliedMessage.includes(word) || replyMessage.includes(word)
         )
     ) {
-        console.log("Mensagem proibida, não será salva");
         await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
@@ -308,7 +301,6 @@ async function answerUser(message) {
 
         const regex = /^[\/.!]/;
         if (regex.test(receivedMessage)) {
-            console.log("Mensagem não enviada, começa com /");
             return;
         }
 
@@ -376,7 +368,6 @@ async function answerUser(message) {
 
             try {
                 await ChatModel.deleteOne({ chatId: chatId });
-                console.log("Grupo removido do banco de dados.");
             } catch (dbError) {
                 console.error("Erro ao remover o grupo do banco de dados:", dbError);
             }
@@ -440,7 +431,6 @@ async function main(message) {
 async function removeMessage(message) {
     const user_id = message.from.id;
     if (!is_dev(user_id)) {
-        console.log("Usuário não autorizado a usar esse comando");
         return;
     }
 
@@ -451,7 +441,6 @@ async function removeMessage(message) {
 
     const exists = await MessageModel.exists({ message: repliedMessage });
     if (!exists) {
-        console.log("Mensagem não encontrada no banco de dados");
         return;
     }
 
@@ -462,7 +451,6 @@ async function removeMessage(message) {
         ],
     });
 
-    console.log("Mensagem removida com sucesso");
     const chatId = message.chat.id;
     const user = message.from;
     if (message.message_id) {
@@ -722,13 +710,8 @@ async function saveNewChatMembers(msg) {
         const chat = await ChatModel.findOne({ chatId: chatId });
 
         if (chat) {
-            console.log(
-                `Grupo ${chatName} (${chatId}) já existe no banco de dados`
-            );
+
             if (chat.is_ban) {
-                console.log(
-                    `Grupo ${chatName} (${chatId}) está banido, saindo do grupo`
-                );
                 await bot.leaveChat(chatId);
                 return;
             }
@@ -815,21 +798,14 @@ async function removeLeftChatMember(msg) {
     try {
         const chat = await ChatModel.findOne({ chatId });
         if (!chat) {
-            console.log(
-                `Chat com id ${chatId} não foi encontrado no banco de dados`
-            );
+
             return;
         }
         if (chat.is_ban) {
-            console.log(
-                `Grupo ${chat.chatName} (${chat.chatId}) não removido do banco de dados, pois está banido`
-            );
+
             return;
         }
         await ChatModel.findOneAndDelete({ chatId });
-        console.log(
-            `Grupo ${chat.chatName} (${chat.chatId}) removido do banco de dados`
-        );
     } catch (err) {
         console.error(err);
     }
@@ -859,7 +835,6 @@ async function ban(message) {
     const chat = await ChatModel.findOne({ chatId: chatId });
 
     if (!chat) {
-        console.log("Nenhum grupo encontrado com o ID informado.");
         return;
     }
 
