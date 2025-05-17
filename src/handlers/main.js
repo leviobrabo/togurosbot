@@ -37,7 +37,8 @@ async function createMessageAndAddReply(message) {
     if (
         forbiddenWords.some(
             (word) =>
-                repliedMessage.includes(word) || replyMessage.includes(word)
+                (typeof repliedMessage === 'string' && repliedMessage.includes(word)) ||
+                (typeof replyMessage === 'string' && replyMessage.includes(word))
         )
     ) {
         await deleteMessageIfExists(repliedMessage, replyMessage);
@@ -87,7 +88,8 @@ async function addReply(message) {
     if (
         forbiddenWords.some(
             (word) =>
-                repliedMessage.includes(word) || replyMessage.includes(word)
+                 (typeof repliedMessage === 'string' && repliedMessage.includes(word)) ||
+                 (typeof replyMessage === 'string' && replyMessage.includes(word))
         )
     ) {
         await deleteMessageIfExists(repliedMessage, replyMessage);
