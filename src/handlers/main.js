@@ -234,7 +234,7 @@ const audioList = [
         "audioUrl": "https://www.myinstants.com/media/sounds/louco-e-sonhador.mp3"
     },
     {
-        "keyword": "Toguroo",
+        "keyword": "helena",
         "audioUrl": "https://www.myinstants.com/media/sounds/manda-a-foto.mp3"
     },
     {
@@ -405,7 +405,7 @@ async function saveUserInformation(message) {
 
         await newUser.save();
 
-        const notificationMessage = `#Togurosbot #New_User
+        const notificationMessage = `#Helenagbot #New_User
       <b>User:</b> <a href="tg://user?id=${user.id}">${user.first_name}</a>
       <b>ID:</b> <code>${user.id}</code>
       <b>Username:</b> ${user.username ? `@${user.username}` : "Não informado"
@@ -479,8 +479,8 @@ async function start(message) {
         return;
     }
     const firstName = message.from.first_name;
-    const message_start_dev = `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\nVocê está no painel do desenvolvedor do Toguro, então aproveite a responsabilidade e use os comandos com consciências`;
-    const message_start = `Olá, <b>${firstName}</b>!\n\nEu sou <b>Toguro</b>, um bot que não gosta de ser chamado de bot kkkkk e que envia mensagens, áudios e figurinhas. Aproveite as funções que eu tenho.\n\n👾 <b>Canal de figurinhas:</b> <a href="https://t.me/lbrabo">Clique aqui</a>\n\n<b>BTC:</b> <code>bc1qjxzlug0cwnfjrhacy9kkpdzxfj0mcxc079axtl</code>\n<b>ETH/USDT:</b> <code>0x1fbde0d2a96869299049f4f6f78fbd789d167d1b</code>`;
+    const message_start_dev = `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\nVocê está no painel do desenvolvedor da Helena, então aproveite a responsabilidade e use os comandos com consciências`;
+    const message_start = `Olá, <b>${firstName}</b>!\n\nEu sou a <b>Helena</b>, um bot que não gosta de ser chamado de bot kkkkk e que envia mensagens, áudios e figurinhas. Aproveite as funções que eu tenho.\n\n👾 <b>Canal de figurinhas:</b> <a href="https://t.me/lbrabo">Clique aqui</a>\n\n<b>BTC:</b> <code>bc1qjxzlug0cwnfjrhacy9kkpdzxfj0mcxc079axtl</code>\n<b>ETH/USDT:</b> <code>0x1fbde0d2a96869299049f4f6f78fbd789d167d1b</code>`;
     const options_start = {
         parse_mode: "HTML",
         disable_web_page_preview: true,
@@ -489,7 +489,7 @@ async function start(message) {
                 [
                     {
                         text: "✨ Adicione-me em seu grupo",
-                        url: "https://t.me/togurosbot?startgroup=true",
+                        url: "https://t.me/helenagbot?startgroup=true",
                     },
                 ],
                 [
@@ -739,7 +739,7 @@ async function saveNewChatMembers(msg) {
             }
 
             if (newMembers.length > 0) {
-                const message = `#Togurosbot #New_Group
+                const message = `#Helenagbot #New_Group
                 <b>Group:</b> ${chatName}
                 <b>ID:</b> <code>${chatId}</code>
                 <b>Link:</b> ${chatusername}`;
@@ -755,7 +755,7 @@ async function saveNewChatMembers(msg) {
 
             bot.sendMessage(
                 chatId,
-                "Olá, me chamo o Toguro! Obrigado por me adicionado em seu grupo. Eu responderei a mensagem da galera no grupo kkkkk.",
+                "Olá, me chamo Helana! Obrigado por me adicionado em seu grupo. Eu responderei a mensagem da galera no grupo kkkkk.",
                 {
                     reply_markup: {
                         inline_keyboard: [
@@ -858,7 +858,7 @@ async function ban(message) {
     } else {
         chatUsername = "Private Group";
     }
-    const banMessage = `#Togurosbot #Banned
+    const banMessage = `#Helenagbot #Banned
     <b>Group:</b> ${chat.chatName}
     <b>ID:</b> <code>${chatId}</code>
     <b>Dev:</b> ${chatUsername}`;
@@ -872,7 +872,7 @@ async function ban(message) {
     );
 
     await ChatModel.updateOne({ chatId: chatId }, { $set: { is_ban: true } });
-    await bot.sendMessage(chatId, `Toguro sairá do grupo e não pode ficar!!`);
+    await bot.sendMessage(chatId, `Helena sairá do grupo e não pode ficar!!`);
     await bot.leaveChat(chatId);
 
     await bot.sendMessage(
@@ -925,7 +925,7 @@ async function unban(message) {
     } else {
         devUsername = "Private Group";
     }
-    const banMessage = `#Togurosbot #Unban
+    const banMessage = `#Helenagbot #Unban
     <b>Group:</b> ${chat.chatName}
     <b>ID:</b> <code>${chatId}</code>
     <b>Dev:</b> ${devUsername}`;
@@ -1184,7 +1184,7 @@ async function sendStatus() {
     const numUsers = await UserModel.countDocuments();
     const numChats = await ChatModel.countDocuments();
     await bot.editMessageText(
-        `#Togurosbot #Status\n\nStatus: ON\nPing: \`${m_s}ms\`\nUptime: \`${uptime_formatted}\`\nUsers: \`${numUsers}\`\nChats: \`${numChats}\``,
+        `#Helenagbot #Status\n\nStatus: ON\nPing: \`${m_s}ms\`\nUptime: \`${uptime_formatted}\`\nUsers: \`${numUsers}\`\nChats: \`${numChats}\``,
         {
             chat_id: replied.chat.id,
             message_id: replied.message_id,
