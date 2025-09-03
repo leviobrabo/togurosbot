@@ -16,6 +16,12 @@ function is_dev(user_id) {
 
 const forbiddenWords = palavrasProibidas.palavras_proibidas;
 
+function containsUrl(text) {
+    if (typeof text !== "string") return false;
+    const urlRegex = /\b(?:https?:\/\/|www\.)\S+\.(?:[a-z]{2,})(?:\S*)?\b/gi;
+    return urlRegex.test(text);
+}
+
 async function createMessageAndAddReply(message) {
     const repliedMessage =
         message.reply_to_message?.sticker?.file_unique_id ??
@@ -27,9 +33,7 @@ async function createMessageAndAddReply(message) {
         return;
     }
 
-    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
-
-    if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
+    if (containsUrl(repliedMessage) || containsUrl(replyMessage)) {
         await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
@@ -78,9 +82,7 @@ async function addReply(message) {
         return;
     }
 
-    const urlRegex = /(?:https?:\/\/|www\.)[^\s]+(?:\.com(?:\.br)?|\.org|\.net)\b/;
-
-    if (urlRegex.test(repliedMessage) || urlRegex.test(replyMessage)) {
+    if (containsUrl(repliedMessage) || containsUrl(replyMessage)) {
         await deleteMessageIfExists(repliedMessage, replyMessage);
         return;
     }
