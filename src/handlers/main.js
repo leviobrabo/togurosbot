@@ -28,6 +28,8 @@ async function createMessageAndAddReply(message) {
         message.reply_to_message?.text;
     const replyMessage = message.sticker?.file_id ?? message.text;
 
+    if (!repliedMessage || !replyMessage) return
+    
     const regex = /^[\/.!]/;
     if (regex.test(repliedMessage) || regex.test(replyMessage)) {
         return;
