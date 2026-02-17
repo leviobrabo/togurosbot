@@ -1168,90 +1168,36 @@ bot.onText(/^\/broadcast\b/, async (msg) => {
     if (msg.chat.type !== "private") return;
 
     if (!msg.reply_to_message) {
-        return bot.sendMessage(
-            msg.chat.id,
-            "<i>Reply to a message to broadcast it.</i>",
-            { parse_mode: "HTML" }
-        );
+        return bot.sendMessage(msg.chat.id, "Reply na mensagem para enviar.");
     }
 
     const reply = msg.reply_to_message;
     const ulist = await UserModel.find().lean().select("user_id");
 
-    const sentMsg = await bot.sendMessage(msg.chat.id, "<i>Broadcasting...</i>", {
-        parse_mode: "HTML",
-    });
+    const sentMsg = await bot.sendMessage(msg.chat.id, "Broadcast iniciando...");
 
-    let success = 0;
-    let failed = 0;
-    let blocked = 0;
+    let success = 0, failed = 0, blocked = 0;
 
     for (const { user_id } of ulist) {
         try {
-            // TEXT
-            if (reply.text) {
-                await bot.sendMessage(user_id, reply.text, {
-                    parse_mode: "HTML",
-                });
-            }
-
-            // PHOTO
-            else if (reply.photo) {
-                const file_id = reply.photo[reply.photo.length - 1].file_id;
-                await bot.sendPhoto(user_id, file_id, {
-                    caption: reply.caption || "",
-                    parse_mode: "HTML",
-                });
-            }
-
-            // VIDEO
-            else if (reply.video) {
-                await bot.sendVideo(user_id, reply.video.file_id, {
-                    caption: reply.caption || "",
-                    parse_mode: "HTML",
-                });
-            }
-
-            // DOCUMENT
-            else if (reply.document) {
-                await bot.sendDocument(user_id, reply.document.file_id, {
-                    caption: reply.caption || "",
-                    parse_mode: "HTML",
-                });
-            }
-
-            // AUDIO
-            else if (reply.audio) {
-                await bot.sendAudio(user_id, reply.audio.file_id, {
-                    caption: reply.caption || "",
-                    parse_mode: "HTML",
-                });
-            }
-
-            // STICKER
-            else if (reply.sticker) {
-                await bot.sendSticker(user_id, reply.sticker.file_id);
-            }
-
+            await bot.copyMessage(user_id, msg.chat.id, reply.message_id);
             success++;
         } catch (err) {
             if (err?.response?.body?.error_code === 403) blocked++;
             else failed++;
         }
+
+        // anti flood
+        await new Promise(r => setTimeout(r, 40));
     }
 
     await bot.editMessageText(
-        `╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
-│- <i>Total Users:</i> \`${ulist.length}\`
-│- <i>Successful:</i> \`${success}\`
-│- <i>Blocked:</i> \`${blocked}\`
-│- <i>Failed:</i> \`${failed}\`
-╰❑`,
-        {
-            chat_id: sentMsg.chat.id,
-            message_id: sentMsg.message_id,
-            parse_mode: "HTML",
-        }
+        `Broadcast finalizado:
+Total: ${ulist.length}
+Enviados: ${success}
+Bloquearam: ${blocked}
+Falharam: ${failed}`,
+        { chat_id: sentMsg.chat.id, message_id: sentMsg.message_id }
     );
 });
 
