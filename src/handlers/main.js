@@ -1105,60 +1105,51 @@ bot.onText(/\/ping/, async (msg) => {
     );
 });
 
-bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
+bot.onText(/^\/bc\b/, async (msg, match) => {
     const user_id = msg.from.id;
-    if (!(await is_dev(user_id))) {
-        return;
-    }
-    if (msg.chat.type !== "private") {
-        return;
+    if (!(await is_dev(user_id))) return;
+    if (msg.chat.type !== "private") return;
+
+    const query = msg.text.substring(3).trim();
+    if (!query) {
+        return bot.sendMessage(msg.chat.id, "<i>I need text to broadcast.</i>", {
+            parse_mode: "HTML",
+        });
     }
 
-    const query = match.input.substring(match[0].length).trim();
-    if (!query) {
-        return bot.sendMessage(
-            msg.chat.id,
-            "<i>I need text to broadcast.</i>",
-            { parse_mode: "HTML" }
-        );
-    }
     const sentMsg = await bot.sendMessage(msg.chat.id, "<i>Processing...</i>", {
         parse_mode: "HTML",
     });
+
     const web_preview = query.startsWith("-d");
     const query_ = web_preview ? query.substring(2).trim() : query;
+
     const ulist = await UserModel.find().lean().select("user_id");
-    let sucess_br = 0;
-    let no_sucess = 0;
-    let block_num = 0;
+
+    let success = 0;
+    let failed = 0;
+    let blocked = 0;
+
     for (const { user_id } of ulist) {
         try {
             await bot.sendMessage(user_id, query_, {
                 disable_web_page_preview: !web_preview,
                 parse_mode: "HTML",
             });
-            sucess_br += 1;
+            success++;
         } catch (err) {
-            if (
-                err.response &&
-                err.response.body &&
-                err.response.body.error_code === 403
-            ) {
-                block_num += 1;
-            } else {
-                no_sucess += 1;
-            }
+            if (err?.response?.body?.error_code === 403) blocked++;
+            else failed++;
         }
     }
+
     await bot.editMessageText(
-        `
-  ╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
-  │- <i>Total Users:</i> \`${ulist.length}\`
-  │- <i>Successful:</i> \`${sucess_br}\`
-  │- <i>Blocked:</i> \`${block_num}\`
-  │- <i>Failed:</i> \`${no_sucess}\`
-  ╰❑
-    `,
+        `╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
+│- <i>Total Users:</i> \`${ulist.length}\`
+│- <i>Successful:</i> \`${success}\`
+│- <i>Blocked:</i> \`${blocked}\`
+│- <i>Failed:</i> \`${failed}\`
+╰❑`,
         {
             chat_id: sentMsg.chat.id,
             message_id: sentMsg.message_id,
@@ -1167,6 +1158,63 @@ bot.onText(/^(\/broadcast|\/bc)\b/, async (msg, match) => {
     );
 });
 
+bot.onText(/^\/broadcast\b/, async (msg) => {
+    const user_id = msg.from.id;
+    if (!(await is_dev(user_id))) return;
+    if (msg.chat.type !== "private") return;
+
+    if (!msg.reply_to_message) {
+        return bot.sendMessage(
+            msg.chat.id,
+            "<i>Reply na mensagem para enviar para todos.</i>",
+            { parse_mode: "HTML" }
+        );
+    }
+
+    const reply = msg.reply_to_message;
+    const ulist = await UserModel.find().lean().select("user_id");
+
+    const sentMsg = await bot.sendMessage(
+        msg.chat.id,
+        "<i>Broadcast iniciando...</i>",
+        { parse_mode: "HTML" }
+    );
+
+    let success = 0;
+    let failed = 0;
+    let blocked = 0;
+
+    for (const { user_id } of ulist) {
+        try {
+            // COPIA A MENSAGEM ORIGINAL (PERFEITO)
+            await bot.copyMessage(user_id, msg.chat.id, reply.message_id);
+            success++;
+        } catch (err) {
+            if (err?.response?.body?.error_code === 403) {
+                blocked++;
+            } else {
+                failed++;
+            }
+        }
+
+        // Anti flood (IMPORTANTÍSSIMO)
+        await setTimeout(20);
+    }
+
+    await bot.editMessageText(
+        `╭─❑ 「 <b>Broadcast Completed</b> 」 ❑──
+│- <i>Total Users:</i> \`${ulist.length}\`
+│- <i>Successful:</i> \`${success}\`
+│- <i>Blocked:</i> \`${blocked}\`
+│- <i>Failed:</i> \`${failed}\`
+╰❑`,
+        {
+            chat_id: sentMsg.chat.id,
+            message_id: sentMsg.message_id,
+            parse_mode: "HTML",
+        }
+    );
+});
 
 const channelStatusId = process.env.channelStatusId;
 
