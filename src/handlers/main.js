@@ -1170,7 +1170,7 @@ bot.onText(/^\/broadcast\b/, async (msg) => {
     if (!msg.reply_to_message) {
         return bot.sendMessage(
             msg.chat.id,
-            "<i>Reply to a message to broadcast it.</i>",
+            "<i>Reply na mensagem para enviar para todos.</i>",
             { parse_mode: "HTML" }
         );
     }
@@ -1178,9 +1178,11 @@ bot.onText(/^\/broadcast\b/, async (msg) => {
     const reply = msg.reply_to_message;
     const ulist = await UserModel.find().lean().select("user_id");
 
-    const sentMsg = await bot.sendMessage(msg.chat.id, "<i>Broadcasting...</i>", {
-        parse_mode: "HTML",
-    });
+    const sentMsg = await bot.sendMessage(
+        msg.chat.id,
+        "<i>Broadcast iniciando...</i>",
+        { parse_mode: "HTML" }
+    );
 
     let success = 0;
     let failed = 0;
@@ -1188,54 +1190,19 @@ bot.onText(/^\/broadcast\b/, async (msg) => {
 
     for (const { user_id } of ulist) {
         try {
-            // TEXT
-            if (reply.text) {
-                await bot.sendMessage(user_id, reply.text, {
-                    entities: reply.entities || reply.caption_entities,
-                });
-            }
-
-            // PHOTO
-            else if (reply.photo) {
-                const file_id = reply.photo[reply.photo.length - 1].file_id;
-                await bot.sendPhoto(user_id, file_id, {
-                    caption: reply.caption || "",
-                    caption_entities: reply.caption_entities,
-                });
-            }
-            
-            else if (reply.video) {
-                await bot.sendVideo(user_id, reply.video.file_id, {
-                    caption: reply.caption || "",
-                    caption_entities: reply.caption_entities,
-                });
-            }
-            
-            else if (reply.document) {
-                await bot.sendDocument(user_id, reply.document.file_id, {
-                    caption: reply.caption || "",
-                    caption_entities: reply.caption_entities,
-                });
-            }
-            
-            else if (reply.audio) {
-                await bot.sendAudio(user_id, reply.audio.file_id, {
-                    caption: reply.caption || "",
-                    caption_entities: reply.caption_entities,
-                });
-            }
-
-
-            // STICKER
-            else if (reply.sticker) {
-                await bot.sendSticker(user_id, reply.sticker.file_id);
-            }
-
+            // COPIA A MENSAGEM ORIGINAL (PERFEITO)
+            await bot.copyMessage(user_id, msg.chat.id, reply.message_id);
             success++;
         } catch (err) {
-            if (err?.response?.body?.error_code === 403) blocked++;
-            else failed++;
+            if (err?.response?.body?.error_code === 403) {
+                blocked++;
+            } else {
+                failed++;
+            }
         }
+
+        // Anti flood (IMPORTANTÍSSIMO)
+        await new Promise(r => setTimeout(r, 50)); // 20 msg/s seguro
     }
 
     await bot.editMessageText(
