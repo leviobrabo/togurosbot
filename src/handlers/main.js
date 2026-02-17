@@ -1202,7 +1202,7 @@ bot.onText(/^\/broadcast\b/, async (msg) => {
         }
 
         // Anti flood (IMPORTANTÍSSIMO)
-        await new Promise(r => setTimeout(r, 50)); // 20 msg/s seguro
+        await setTimeout(20);
     }
 
     await bot.editMessageText(
