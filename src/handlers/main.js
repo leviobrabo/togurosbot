@@ -115,6 +115,14 @@ function normalizeReplyItem(item) {
     const isStickerFileId = /^[A-Za-z0-9_-]{30,}$/.test(item);
     return { type: isStickerFileId ? "sticker" : "text", value: item, emoji_entities: [] };
   }
+  // Formato antigo: Mongoose espalhou a string em índices numéricos {"0":"H","1":"i",...}
+  if (!item.value && item["0"] !== undefined) {
+    let i = 0, chars = [];
+    while (item[String(i)] !== undefined) { chars.push(item[String(i)]); i++; }
+    const str = chars.join("");
+    const isStickerFileId = /^[A-Za-z0-9_-]{30,}$/.test(str);
+    return { type: isStickerFileId ? "sticker" : "text", value: str, emoji_entities: [] };
+  }
   if (item.custom_emoji_ids && !item.emoji_entities) {
     item.emoji_entities = [];
   }
