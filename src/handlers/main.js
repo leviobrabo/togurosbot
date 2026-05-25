@@ -12,6 +12,35 @@ const groupId = process.env.groupId;
 const logMsgId = parseInt(process.env.LOG_MSG_ID) || null;
 const channelStatusId = process.env.channelStatusId;
 
+let crashCount = 0;
+let lastCrashTime = 0;
+const CRASH_LIMIT = 5;
+const CRASH_WINDOW = 60000;
+
+function checkCrashLoop() {
+  const now = Date.now();
+  if (now - lastCrashTime > CRASH_WINDOW) crashCount = 0;
+  crashCount++;
+  lastCrashTime = now;
+  if (crashCount >= CRASH_LIMIT) {
+    console.error(`[CRASH-LOOP] ${crashCount} crashes em ${CRASH_WINDOW / 1000}s — parando para evitar loop.`);
+    process.exit(2);
+  }
+}
+
+process.on("uncaughtException", (err) => {
+  const msg = err?.message ?? String(err);
+  if (msg.includes("ETELEGRAM") || msg.includes("polling") || msg.includes("Conflict")) return;
+  checkCrashLoop();
+});
+
+process.on("unhandledRejection", (reason) => {
+  const msg = reason?.message ?? String(reason);
+  const code = reason?.response?.body?.error_code;
+  if (code === 429 || msg.includes("ETELEGRAM") || msg.includes("polling")) return;
+  checkCrashLoop();
+});
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function is_dev(user_id) {
@@ -183,7 +212,7 @@ function cleanPaginationState() {
   }
 }
 
-setInterval(cleanPaginationState, 5 * 60 * 1000).unref();
+setInterval(cleanPaginationState, 10 * 60 * 1000).unref();
 
 function buildNavMarkup(type, page, total) {
     const buttons = [];
@@ -273,25 +302,25 @@ async function answerUser(message) {
   try {
     if (/^[\/.!]/.test(received)) return;
 
-    const sendOpts = { reply_to_message_id: message.message_id };
+    const sendOpts = isGroup ? {} : { reply_to_message_id: message.message_id };
 
     const audioMatch = audioList.find((a) => received === a.keyword);
     if (audioMatch) {
-      await bot.sendChatAction(chatId, "record_audio");
+      await bot.sendChatAction(chatId, "record_audio").catch(() => {});
       await Promise.race([
         safeSendAudio(chatId, audioMatch.audioUrl, sendOpts),
         new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000)),
-      ]).catch((e) => console.error("Audio error:", e.message));
+      ]).catch((e) => console.warn("[AUDIO-WARN]", e.message));
       return;
     }
 
     const photoMatch = photoList.find((p) => received === p.keyword);
     if (photoMatch) {
-      await bot.sendChatAction(chatId, "upload_photo");
+      await bot.sendChatAction(chatId, "upload_photo").catch(() => {});
       await Promise.race([
         safeSendPhoto(chatId, photoMatch.photoUrl, sendOpts),
         new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000)),
-      ]).catch((e) => console.error("Photo error:", e.message));
+      ]).catch((e) => console.warn("[PHOTO-WARN]", e.message));
       return;
     }
 
@@ -302,28 +331,31 @@ async function answerUser(message) {
       if (!replyItem || !replyItem.value) return;
 
       const typingTime = Math.min(Math.max(50 * replyItem.value.length, 200), 6000);
-      await bot.sendChatAction(chatId, "typing");
+      await bot.sendChatAction(chatId, "typing").catch(() => {});
       await delay(typingTime);
 
       if (replyItem.type === "sticker") {
         await bot.sendSticker(chatId, replyItem.value, sendOpts).catch((err) => {
-          console.error("Sticker send error:", err.message);
+          if (!err.message?.includes("message to be replied")) {
+            console.warn("[STICKER-WARN]", err.message);
+          }
+          return bot.sendSticker(chatId, replyItem.value).catch(() => {});
         });
       } else if (replyItem.type === "custom_emoji" && replyItem.emoji_entities?.length > 0) {
         await bot.sendMessage(chatId, replyItem.value, {
-          reply_to_message_id: message.message_id,
+          ...sendOpts,
           disable_web_page_preview: true,
           entities: buildEntitiesFromStored(replyItem.emoji_entities),
         }).catch(async (err) => {
-          console.error("Custom emoji send error:", err.message);
+          console.warn("[EMOJI-WARN]", err.message);
           await bot.sendMessage(chatId, replyItem.value, {
-            reply_to_message_id: message.message_id,
+            ...sendOpts,
             disable_web_page_preview: true,
           }).catch(() => {});
         });
       } else {
         await bot.sendMessage(chatId, replyItem.value, {
-          reply_to_message_id: message.message_id,
+          ...sendOpts,
           disable_web_page_preview: true,
         }).catch(() => {});
       }
@@ -543,11 +575,11 @@ async function start(message) {
 
     const devText =
         `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\n` +
-        `Você está no painel do Toguro. Use os comandos com responsabilidade.`;
+        `Você está no painel do Helana. Use os comandos com responsabilidade.`;
 
     const userText =
         `Olá, <b>${firstName}</b>!\n\n` +
-        `Eu sou <b>Toguro</b>, um bot que responde mensagens, áudios e figurinhas da galera 😄\n\n` +
+        `Eu sou <b>Helana</b>, um bot que responde mensagens, áudios e figurinhas da galera 😄\n\n` +
         `📣 <b>Novidades do bot:</b> <a href="https://t.me/lbrabo">@lbrabo</a>\n` +
         `📚 <b>Cursos:</b> <a href="https://t.me/cursobroff">@cursobroff</a>`;
 
@@ -557,7 +589,7 @@ async function start(message) {
             disable_web_page_preview: true,
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "📦 Github", url: "https://github.com/leviobrabo/togurosbot" }],
+                    [{ text: "📦 Github", url: "https://github.com/leviobrabo/helenegbot" }],
                     [
                         { text: "📣 Canal", url: "https://t.me/lbrabo" },
                         { text: "👨‍💻 Suporte", url: "https://t.me/kylorensbot" },
@@ -572,12 +604,12 @@ async function start(message) {
             disable_web_page_preview: true,
             reply_markup: {
                 inline_keyboard: [
-                    [{ text: "✨ Adicione-me em seu grupo", url: "https://t.me/togurosbot?startgroup=true" }],
+                    [{ text: "✨ Adicione-me em seu grupo", url: "https://t.me/helenagbot?startgroup=true" }],
                     [
                         { text: "📣 Canal Oficial", url: "https://t.me/lbrabo" },
                         { text: "👨‍💻 Suporte", url: "https://t.me/kylorensbot" },
                     ],
-                    [{ text: "📦 Github", url: "https://github.com/leviobrabo/togurosbot" }],
+                    [{ text: "📦 Github", url: "https://github.com/leviobrabo/helanagbot" }],
                 ],
             },
         });
@@ -735,13 +767,13 @@ async function ban(message) {
     if (chat.is_ban) return bot.sendMessage(message.chat.id, `Grupo <b>${chat.chatName}</b> já está banido.`, { parse_mode: "HTML" });
 
     await ChatModel.updateOne({ chatId }, { $set: { is_ban: true } });
-    await bot.sendMessage(chatId, "Toguro saindo do grupo!").catch(() => {});
+    await bot.sendMessage(chatId, "Helana saindo do grupo!").catch(() => {});
     await bot.leaveChat(chatId).catch(() => {});
     await bot.sendMessage(message.chat.id, `✅ Grupo <b>${chat.chatName}</b> banido com sucesso.`, { parse_mode: "HTML" });
 
     bot.sendMessage(
         groupId,
-        `#Togurosbot #Banned\n<b>Group:</b> ${chat.chatName}\n<b>ID:</b> <code>${chatId}</code>`,
+        `#helenagbot #Banned\n<b>Group:</b> ${chat.chatName}\n<b>ID:</b> <code>${chatId}</code>`,
         { parse_mode: "HTML", ...(logMsgId && { reply_to_message_id: logMsgId }) }
     ).catch(() => {});
 }
@@ -771,7 +803,7 @@ async function unban(message) {
 
     bot.sendMessage(
         groupId,
-        `#Togurosbot #Unban\n<b>Group:</b> ${chat.chatName}\n<b>ID:</b> <code>${chatId}</code>`,
+        `#helenagbot #Unban\n<b>Group:</b> ${chat.chatName}\n<b>ID:</b> <code>${chatId}</code>`,
         { parse_mode: "HTML", ...(logMsgId && { reply_to_message_id: logMsgId }) }
     ).catch(() => {});
 }
@@ -1158,44 +1190,91 @@ async function sendgp(msg) {
   );
 }
 
-// ─── Adsterra ads ─────────────────────────────────────────────────────────────
+// ─── Adsterra ads (rate-limit aware) ─────────────────────────────────────────
 
-async function sendAdsToUsers() {
-    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    const users = await UserModel.find({
-        $or: [{ last_ad_sent: null }, { last_ad_sent: { $lt: cutoff } }],
-    })
-        .lean()
-        .select("user_id");
+let adDelay = 250;
+const AD_MIN_DELAY = 100;
+const AD_MAX_DELAY = 2000;
 
-    if (!users.length) return;
+async function sendAdWithRateLimit(chatId, text, replyMarkup, isGroup) {
+  try {
+    await safeSendMessage(chatId, text, {
+      disable_web_page_preview: true,
+      reply_markup: replyMarkup,
+    });
+    adDelay = Math.max(AD_MIN_DELAY, adDelay * 0.95);
+    return true;
+  } catch (err) {
+    const code = err?.response?.body?.error_code;
+    const desc = err?.response?.body?.description || "";
 
-    const now = new Date();
-    let success = 0, failed = 0;
-
-    for (const { user_id } of users) {
-        try {
-            const link = randomItem(adsterra.links);
-            const tpl = randomItem(adsterra.userTemplates);
-            await safeSendMessage(user_id, tpl.text, {
-                disable_web_page_preview: true,
-                reply_markup: { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] },
-            });
-            await UserModel.updateOne({ user_id }, { $set: { last_ad_sent: now } });
-            success++;
-    } catch (err) {
-      const code = err?.response?.body?.error_code;
-      const desc = err?.response?.body?.description || "";
-      if (code === 403 || (code === 400 && /chat not found|bot can't initiate/i.test(desc))) {
-        await UserModel.deleteOne({ user_id }).catch(() => {});
-      } else {
-        failed++;
+    if (code === 429) {
+      const retryAfter = err?.response?.body?.parameters?.retry_after || 10;
+      console.warn(`[ADS] 429 rate limit — aguardando ${retryAfter}s`);
+      adDelay = Math.min(AD_MAX_DELAY, adDelay * 2);
+      await delay(retryAfter * 1000);
+      try {
+        await safeSendMessage(chatId, text, {
+          disable_web_page_preview: true,
+          reply_markup: replyMarkup,
+        });
+        return true;
+      } catch (retryErr) {
+        return false;
       }
     }
-    await delay(250);
+
+    if (isGroup) {
+      if (code === 403 || (code === 400 && /chat not found|group is deactivated|not enough rights/i.test(desc))) {
+        await ChatModel.deleteOne({ chatId }).catch(() => {});
+      }
+    } else {
+      if (code === 403 || (code === 400 && /chat not found|bot can't initiate/i.test(desc))) {
+        await UserModel.deleteOne({ user_id: chatId }).catch(() => {});
+      }
+    }
+    return false;
+  }
+}
+
+async function sendAdsToUsers() {
+  const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  const users = await UserModel.find({
+    $or: [{ last_ad_sent: null }, { last_ad_sent: { $lt: cutoff } }],
+  })
+    .lean()
+    .select("user_id")
+    .limit(500);
+
+  if (!users.length) return;
+
+  const now = new Date();
+  let success = 0, failed = 0;
+  const total = users.length;
+
+  for (let i = 0; i < users.length; i++) {
+    const { user_id } = users[i];
+    const link = randomItem(adsterra.links);
+    const tpl = randomItem(adsterra.userTemplates);
+    const replyMarkup = { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] };
+
+    const ok = await sendAdWithRateLimit(user_id, tpl.text, replyMarkup, false);
+    if (ok) {
+      await UserModel.updateOne({ user_id }, { $set: { last_ad_sent: now } });
+      success++;
+    } else {
+      failed++;
+    }
+
+    await delay(adDelay);
+
+    if (i % 100 === 0 && i > 0) {
+      console.log(`[ADS-USERS] Progresso: ${i}/${total} | OK: ${success} | Fail: ${failed}`);
+      await delay(2000);
+    }
   }
 
-  console.log(`[ADS-USERS] Enviado: ${success} | Falhas: ${failed}`);
+  console.log(`[ADS-USERS] Concluído: ${success}/${total} | Falhas: ${failed}`);
 }
 
 async function sendAdsToGroups() {
@@ -1205,36 +1284,38 @@ async function sendAdsToGroups() {
     $or: [{ last_ad_sent: null }, { last_ad_sent: { $lt: cutoff } }],
   })
     .lean()
-    .select("chatId");
+    .select("chatId")
+    .limit(300);
 
   if (!groups.length) return;
 
   const now = new Date();
   let success = 0, failed = 0;
+  const total = groups.length;
 
-  for (const { chatId } of groups) {
-    try {
-      const link = randomItem(adsterra.links);
-      const tpl = randomItem(adsterra.groupTemplates);
-      await safeSendMessage(chatId, tpl.text, {
-        disable_web_page_preview: true,
-        reply_markup: { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] },
-      });
+  for (let i = 0; i < groups.length; i++) {
+    const { chatId } = groups[i];
+    const link = randomItem(adsterra.links);
+    const tpl = randomItem(adsterra.groupTemplates);
+    const replyMarkup = { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] };
+
+    const ok = await sendAdWithRateLimit(chatId, tpl.text, replyMarkup, true);
+    if (ok) {
       await ChatModel.updateOne({ chatId }, { $set: { last_ad_sent: now } });
       success++;
-    } catch (err) {
-      const code = err?.response?.body?.error_code;
-      const desc = err?.response?.body?.description || "";
-      if (code === 403 || (code === 400 && /chat not found|group is deactivated|not enough rights/i.test(desc))) {
-        await ChatModel.deleteOne({ chatId }).catch(() => {});
-      } else {
-        failed++;
-      }
+    } else {
+      failed++;
     }
-    await delay(300);
+
+    await delay(adDelay);
+
+    if (i % 50 === 0 && i > 0) {
+      console.log(`[ADS-GROUPS] Progresso: ${i}/${total} | OK: ${success} | Fail: ${failed}`);
+      await delay(3000);
+    }
   }
 
-    console.log(`[ADS-GROUPS] Enviado: ${success} | Falhas: ${failed}`);
+  console.log(`[ADS-GROUPS] Concluído: ${success}/${total} | Falhas: ${failed}`);
 }
 
 // ─── status cron ──────────────────────────────────────────────────────────────
@@ -1248,7 +1329,7 @@ async function sendStatus() {
     const numChats = await ChatModel.countDocuments({ is_ban: false });
     await bot
         .editMessageText(
-            `#Togurosbot #Status\n\nStatus: ON\nPing: \`${ping}ms\`\nUptime: \`${timeFormatter(process.uptime())}\`\nUsuários: \`${numUsers}\`\nGrupos: \`${numChats}\``,
+            `#helenagbot #Status\n\nStatus: ON\nPing: \`${ping}ms\`\nUptime: \`${timeFormatter(process.uptime())}\`\nUsuários: \`${numUsers}\`\nGrupos: \`${numChats}\``,
             { chat_id: replied.chat.id, message_id: replied.message_id, parse_mode: "Markdown" }
         )
         .catch(() => {});
@@ -1257,26 +1338,29 @@ async function sendStatus() {
 // ─── lifecycle ────────────────────────────────────────────────────────────────
 
 function sendBotOnlineMessage() {
-    console.log("Toguro iniciado com sucesso...");
-    bot.sendMessage(groupId, "#Toguro #ONLINE\n\nBot is now playing ...", {
+    console.log("Helana iniciado com sucesso...");
+    bot.sendMessage(groupId, "#Helana #ONLINE\n\nBot is now playing ...", {
         ...(logMsgId && { reply_to_message_id: logMsgId }),
     }).catch(() => {});
 }
 
 function sendBotOfflineMessage() {
-    console.log("Toguro encerrado...");
-    bot.sendMessage(groupId, "#Toguro #OFFLINE\n\nBot is now off ...", {
-        ...(logMsgId && { reply_to_message_id: logMsgId }),
-    })
-        .then(() => process.exit(0))
-        .catch(() => process.exit(1));
+  console.log("Helana encerrado...");
+  bot.sendMessage(groupId, "#Helana #OFFLINE\n\nBot is now off ...", {
+    ...(logMsgId && { reply_to_message_id: logMsgId }),
+  }).catch(() => {}).finally(() => {
+    setTimeout(() => process.exit(0), 1000);
+  });
 }
 
 function pollingError(error) {
-    console.error("Polling error:", error.message || error);
+  const msg = error?.message ?? String(error);
+  if (msg.includes("ETELEGRAM") || msg.includes("timeout") || msg.includes("Conflict")) {
+    console.warn(`[POLLING-WARN] ${msg}`);
+    return;
+  }
+  console.error("Polling error:", msg);
 }
-
-process.on("SIGINT", sendBotOfflineMessage);
 
 // ─── global callback_query handler ───────────────────────────────────────────
 
@@ -1321,7 +1405,7 @@ function registerCallbackHandler() {
             const firstName = q.from.first_name;
             const devText =
                 `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\n` +
-                `Você está no painel do Toguro. Use os comandos com responsabilidade.`;
+                `Você está no painel do Helana. Use os comandos com responsabilidade.`;
             await bot
                 .editMessageText(devText, {
                     parse_mode: "HTML",
@@ -1330,7 +1414,7 @@ function registerCallbackHandler() {
                     message_id: q.message.message_id,
                     reply_markup: {
                         inline_keyboard: [
-                            [{ text: "📦 Github", url: "https://github.com/leviobrabo/togurosbot" }],
+                            [{ text: "📦 Github", url: "https://github.com/leviobrabo/helenagbot" }],
                             [
                                 { text: "📣 Canal", url: "https://t.me/lbrabo" },
                                 { text: "👨‍💻 Suporte", url: "https://t.me/kylorensbot" },
@@ -1516,28 +1600,35 @@ exports.initHandler = () => {
     bot.onText(/^\/broadcast\b/, broadcast);
     bot.onText(/^\/sendgp/, sendgp);
 
-    // Status diário às 12:02
-    new CronJob("02 00 12 * * *", sendStatus, null, true, "America/Sao_Paulo");
+  // Status diário às 12:02
+  new CronJob("02 00 12 * * *", sendStatus, null, true, "America/Sao_Paulo");
 
-    // Ads para usuários: todo dia às 10h e 16h
-    new CronJob("0 0 10 * * *", sendAdsToUsers, null, true, "America/Sao_Paulo");
-    new CronJob("0 0 16 * * *", sendAdsToUsers, null, true, "America/Sao_Paulo");
+  // Ads para usuários: 4x por dia para cobrir 12k users em batches
+  new CronJob("0 0 8 * * *", sendAdsToUsers, null, true, "America/Sao_Paulo");
+  new CronJob("0 0 12 * * *", sendAdsToUsers, null, true, "America/Sao_Paulo");
+  new CronJob("0 0 16 * * *", sendAdsToUsers, null, true, "America/Sao_Paulo");
+  new CronJob("0 0 21 * * *", sendAdsToUsers, null, true, "America/Sao_Paulo");
 
-    // Ads para grupos: todo dia às 12h e 20h
-    new CronJob("0 0 12 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
-    new CronJob("0 0 20 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
+  // Ads para grupos: 3x por dia
+  new CronJob("0 0 10 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
+  new CronJob("0 0 14 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
+  new CronJob("0 0 20 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
 
   // Migração de reply: dia 1 de cada mês às 03:00
   new CronJob("0 0 3 1 * *", migrateReplyFormat, null, true, "America/Sao_Paulo");
 
-  // Monitor de memória: a cada 5min, restart via pm2 se > 500MB
+  // Monitor de memória: a cada 5min, restart graceful se > 450MB
   new CronJob("0 */5 * * * *", async () => {
     const mem = process.memoryUsage();
-    if (mem.heapUsed > 500 * 1024 * 1024) {
-      console.log(`[MEM] Heap ${Math.round(mem.heapUsed / 1024 / 1024)}MB > 500MB — reiniciando via pm2...`);
-      process.exit(1);
+    const heapMB = Math.round(mem.heapUsed / 1024 / 1024);
+    if (heapMB > 450) {
+      console.warn(`[MEM] Heap ${heapMB}MB > 450MB — restart graceful...`);
+      const { bot } = require("../bot");
+      bot.stopPolling();
+      await delay(2000);
+      process.exit(0);
     }
   }, null, true, "America/Sao_Paulo");
 
-    sendBotOnlineMessage();
+  sendBotOnlineMessage();
 };

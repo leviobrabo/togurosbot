@@ -1,10 +1,10 @@
 {
-    "name": "Toguro easy deploy",
-    "description": "'Toguro' is a chatbot that sends messages, stickers and audios",
-    "repository": "https://github.com/leviobrabo/togurosbot",
+    "name": "Helena easy deploy",
+    "description": "'Helena' is a chatbot that sends messages, stickers and audios",
+    "repository": "https://github.com/leviobrabo/helenagbot",
     "logo": "https://i.imgur.com/rZuXElK.jpg",
     "keywords": ["node", "chatbot", "telegrambot"],
-    "website": "https://github.com/leviobrabo/togurosbot",
+    "website": "https://github.com/leviobrabo/helenagbot",
     "success_url": "https://t.me/togurovisao",
     "env": {
         "TELEGRAM_API": {

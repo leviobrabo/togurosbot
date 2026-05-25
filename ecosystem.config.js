@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: "toguro",
+            name: "helena",
             script: "./src/index.js",
             env: {
                 DB_STRING: "",
