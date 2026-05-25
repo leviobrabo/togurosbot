@@ -110,12 +110,13 @@ function buildEntitiesFromStored(emojiEntities) {
   }));
 }
 
-function normalizeReplyItem(item) {
+function normalizeReplyItem(raw) {
+  const item = (raw && typeof raw.toObject === "function") ? raw.toObject() : raw;
+
   if (typeof item === "string" || item instanceof String) {
     const isStickerFileId = /^[A-Za-z0-9_-]{30,}$/.test(item);
     return { type: isStickerFileId ? "sticker" : "text", value: item, emoji_entities: [] };
   }
-  // Formato antigo: Mongoose espalhou a string em índices numéricos {"0":"H","1":"i",...}
   if (!item.value && item["0"] !== undefined) {
     let i = 0, chars = [];
     while (item[String(i)] !== undefined) { chars.push(item[String(i)]); i++; }
