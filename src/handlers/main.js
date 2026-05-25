@@ -318,11 +318,12 @@ async function answerUser(message) {
     }
 
     const doc = await MessageModel.findOne({ message: received });
-    console.log(`[ANSWER] received="${received.slice(0,50)}" doc=${doc ? `found(replies=${doc.reply.length})` : "null"}`);
     if (doc && doc.reply.length) {
-      const rawReply = randomItem(doc.reply);
-      const replyItem = normalizeReplyItem(rawReply);
-      if (!replyItem || !replyItem.value) return;
+      const validReplies = doc.reply
+        .map(normalizeReplyItem)
+        .filter((r) => r && r.value);
+      if (!validReplies.length) return;
+      const replyItem = randomItem(validReplies);
 
       const typingTime = Math.min(Math.max(50 * replyItem.value.length, 200), 6000);
       await bot.sendChatAction(chatId, "typing").catch(() => {});
@@ -330,9 +331,7 @@ async function answerUser(message) {
 
       if (replyItem.type === "sticker") {
         await bot.sendSticker(chatId, replyItem.value, sendOpts).catch((err) => {
-          if (!err.message?.includes("message to be replied")) {
-            console.warn("[STICKER-WARN]", err.message);
-          }
+          console.warn("[STICKER-WARN]", err.message);
           return bot.sendSticker(chatId, replyItem.value).catch(() => {});
         });
       } else if (replyItem.type === "custom_emoji" && replyItem.emoji_entities?.length > 0) {
@@ -343,7 +342,6 @@ async function answerUser(message) {
         }).catch(async (err) => {
           console.warn("[EMOJI-WARN]", err.message);
           await bot.sendMessage(chatId, replyItem.value, {
-            ...sendOpts,
             disable_web_page_preview: true,
           }).catch(() => {});
         });
@@ -351,7 +349,12 @@ async function answerUser(message) {
         await bot.sendMessage(chatId, replyItem.value, {
           ...sendOpts,
           disable_web_page_preview: true,
-        }).catch(() => {});
+        }).catch(async (err) => {
+          console.warn("[TEXT-WARN]", err.message);
+          await bot.sendMessage(chatId, replyItem.value, {
+            disable_web_page_preview: true,
+          }).catch(() => {});
+        });
       }
     }
   } catch (error) {
