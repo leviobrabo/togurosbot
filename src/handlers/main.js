@@ -12,6 +12,35 @@ const groupId = process.env.groupId;
 const logMsgId = parseInt(process.env.LOG_MSG_ID) || null;
 const channelStatusId = process.env.channelStatusId;
 
+let crashCount = 0;
+let lastCrashTime = 0;
+const CRASH_LIMIT = 5;
+const CRASH_WINDOW = 60000;
+
+function checkCrashLoop() {
+  const now = Date.now();
+  if (now - lastCrashTime > CRASH_WINDOW) crashCount = 0;
+  crashCount++;
+  lastCrashTime = now;
+  if (crashCount >= CRASH_LIMIT) {
+    console.error(`[CRASH-LOOP] ${crashCount} crashes em ${CRASH_WINDOW / 1000}s — parando para evitar loop.`);
+    process.exit(2);
+  }
+}
+
+process.on("uncaughtException", (err) => {
+  const msg = err?.message ?? String(err);
+  if (msg.includes("ETELEGRAM") || msg.includes("polling") || msg.includes("Conflict")) return;
+  checkCrashLoop();
+});
+
+process.on("unhandledRejection", (reason) => {
+  const msg = reason?.message ?? String(reason);
+  const code = reason?.response?.body?.error_code;
+  if (code === 429 || msg.includes("ETELEGRAM") || msg.includes("polling")) return;
+  checkCrashLoop();
+});
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function is_dev(user_id) {
@@ -37,21 +66,6 @@ function timeFormatter(seconds) {
     const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
     const s = String(Math.floor(seconds % 60)).padStart(2, "0");
     return `${h}:${m}:${s}`;
-}
-
-function escapeHTML(text) {
-  if (typeof text !== 'string') return '';
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function sanitizeHTML(text) {
-    if (typeof text !== 'string') return '';
-    return text
-        .replace(/[^\w\s\-.,:;!?'"@#$%^&*()+=\[\]{}|<>~`\/]/g, '')
-        .replace(/[\u0000-\u001F\u007F-\u009F]/g, '');
 }
 
 function randomItem(arr) {
@@ -134,13 +148,12 @@ async function retryWithBackoff(fn, maxRetries = 3, delayMs = 1000) {
 }
 
 function safeSendMessage(chatId, text, options = {}) {
-    return retryWithBackoff(async () => {
-        const sanitizedText = sanitizeHTML(text);
-        return await bot.sendMessage(chatId, sanitizedText, {
-            ...options,
-            parse_mode: options.parse_mode || "HTML"
-        });
+  return retryWithBackoff(async () => {
+    return await bot.sendMessage(chatId, text, {
+      ...options,
+      parse_mode: options.parse_mode || "HTML"
     });
+  });
 }
 
 function safeSendAudio(chatId, audioUrl, options = {}) {
@@ -273,57 +286,61 @@ async function answerUser(message) {
   try {
     if (/^[\/.!]/.test(received)) return;
 
-    const sendOpts = { reply_to_message_id: message.message_id };
+    const sendOpts = isGroup ? {} : { reply_to_message_id: message.message_id };
 
     const audioMatch = audioList.find((a) => received === a.keyword);
     if (audioMatch) {
-      await bot.sendChatAction(chatId, "record_audio");
+      await bot.sendChatAction(chatId, "record_audio").catch(() => {});
       await Promise.race([
         safeSendAudio(chatId, audioMatch.audioUrl, sendOpts),
         new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000)),
-      ]).catch((e) => console.error("Audio error:", e.message));
+      ]).catch((e) => console.warn("[AUDIO-WARN]", e.message));
       return;
     }
 
     const photoMatch = photoList.find((p) => received === p.keyword);
     if (photoMatch) {
-      await bot.sendChatAction(chatId, "upload_photo");
+      await bot.sendChatAction(chatId, "upload_photo").catch(() => {});
       await Promise.race([
         safeSendPhoto(chatId, photoMatch.photoUrl, sendOpts),
         new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 6000)),
-      ]).catch((e) => console.error("Photo error:", e.message));
+      ]).catch((e) => console.warn("[PHOTO-WARN]", e.message));
       return;
     }
 
     const doc = await MessageModel.findOne({ message: received });
+    console.log(`[ANSWER] received="${received.slice(0,50)}" doc=${doc ? `found(replies=${doc.reply.length})` : "null"}`);
     if (doc && doc.reply.length) {
       const rawReply = randomItem(doc.reply);
       const replyItem = normalizeReplyItem(rawReply);
       if (!replyItem || !replyItem.value) return;
 
       const typingTime = Math.min(Math.max(50 * replyItem.value.length, 200), 6000);
-      await bot.sendChatAction(chatId, "typing");
+      await bot.sendChatAction(chatId, "typing").catch(() => {});
       await delay(typingTime);
 
       if (replyItem.type === "sticker") {
         await bot.sendSticker(chatId, replyItem.value, sendOpts).catch((err) => {
-          console.error("Sticker send error:", err.message);
+          if (!err.message?.includes("message to be replied")) {
+            console.warn("[STICKER-WARN]", err.message);
+          }
+          return bot.sendSticker(chatId, replyItem.value).catch(() => {});
         });
       } else if (replyItem.type === "custom_emoji" && replyItem.emoji_entities?.length > 0) {
         await bot.sendMessage(chatId, replyItem.value, {
-          reply_to_message_id: message.message_id,
+          ...sendOpts,
           disable_web_page_preview: true,
           entities: buildEntitiesFromStored(replyItem.emoji_entities),
         }).catch(async (err) => {
-          console.error("Custom emoji send error:", err.message);
+          console.warn("[EMOJI-WARN]", err.message);
           await bot.sendMessage(chatId, replyItem.value, {
-            reply_to_message_id: message.message_id,
+            ...sendOpts,
             disable_web_page_preview: true,
           }).catch(() => {});
         });
       } else {
         await bot.sendMessage(chatId, replyItem.value, {
-          reply_to_message_id: message.message_id,
+          ...sendOpts,
           disable_web_page_preview: true,
         }).catch(() => {});
       }
@@ -340,17 +357,20 @@ async function answerUser(message) {
 // ─── main message handler ─────────────────────────────────────────────────────
 
 async function main(message) {
-    const replyTo = message?.reply_to_message ?? false;
-    const botId = await getBotId();
+    try {
+        const replyTo = message?.reply_to_message ?? false;
+        const botId = await getBotId();
 
-    // Garantir que usuário em PV seja salvo
-    if (message.chat.type === "private") {
-        await ensureUserSaved(message);
-    }
+        if (message.chat.type === "private") {
+            await ensureUserSaved(message);
+        }
 
-    if (message.sticker || message.text) {
-        if (replyTo && replyTo.from.id !== botId) addReply(message);
-        if (!replyTo || replyTo.from.id === botId) answerUser(message);
+        if (message.sticker || message.text) {
+            if (replyTo && replyTo.from?.id !== botId) addReply(message);
+            if (!replyTo || replyTo.from?.id === botId) answerUser(message);
+        }
+    } catch (err) {
+        console.error("[MAIN-ERROR]", err.message);
     }
 }
 
@@ -1158,44 +1178,91 @@ async function sendgp(msg) {
   );
 }
 
-// ─── Adsterra ads ─────────────────────────────────────────────────────────────
+// ─── Adsterra ads (rate-limit aware) ─────────────────────────────────────────
 
-async function sendAdsToUsers() {
-    const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
-    const users = await UserModel.find({
-        $or: [{ last_ad_sent: null }, { last_ad_sent: { $lt: cutoff } }],
-    })
-        .lean()
-        .select("user_id");
+let adDelay = 250;
+const AD_MIN_DELAY = 100;
+const AD_MAX_DELAY = 2000;
 
-    if (!users.length) return;
+async function sendAdWithRateLimit(chatId, text, replyMarkup, isGroup) {
+  try {
+    await safeSendMessage(chatId, text, {
+      disable_web_page_preview: true,
+      reply_markup: replyMarkup,
+    });
+    adDelay = Math.max(AD_MIN_DELAY, adDelay * 0.95);
+    return true;
+  } catch (err) {
+    const code = err?.response?.body?.error_code;
+    const desc = err?.response?.body?.description || "";
 
-    const now = new Date();
-    let success = 0, failed = 0;
-
-    for (const { user_id } of users) {
-        try {
-            const link = randomItem(adsterra.links);
-            const tpl = randomItem(adsterra.userTemplates);
-            await safeSendMessage(user_id, tpl.text, {
-                disable_web_page_preview: true,
-                reply_markup: { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] },
-            });
-            await UserModel.updateOne({ user_id }, { $set: { last_ad_sent: now } });
-            success++;
-    } catch (err) {
-      const code = err?.response?.body?.error_code;
-      const desc = err?.response?.body?.description || "";
-      if (code === 403 || (code === 400 && /chat not found|bot can't initiate/i.test(desc))) {
-        await UserModel.deleteOne({ user_id }).catch(() => {});
-      } else {
-        failed++;
+    if (code === 429) {
+      const retryAfter = err?.response?.body?.parameters?.retry_after || 10;
+      console.warn(`[ADS] 429 rate limit — aguardando ${retryAfter}s`);
+      adDelay = Math.min(AD_MAX_DELAY, adDelay * 2);
+      await delay(retryAfter * 1000);
+      try {
+        await safeSendMessage(chatId, text, {
+          disable_web_page_preview: true,
+          reply_markup: replyMarkup,
+        });
+        return true;
+      } catch (retryErr) {
+        return false;
       }
     }
-    await delay(250);
+
+    if (isGroup) {
+      if (code === 403 || (code === 400 && /chat not found|group is deactivated|not enough rights/i.test(desc))) {
+        await ChatModel.deleteOne({ chatId }).catch(() => {});
+      }
+    } else {
+      if (code === 403 || (code === 400 && /chat not found|bot can't initiate/i.test(desc))) {
+        await UserModel.deleteOne({ user_id: chatId }).catch(() => {});
+      }
+    }
+    return false;
+  }
+}
+
+async function sendAdsToUsers() {
+  const cutoff = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+  const users = await UserModel.find({
+    $or: [{ last_ad_sent: null }, { last_ad_sent: { $lt: cutoff } }],
+  })
+    .lean()
+    .select("user_id")
+    .limit(500);
+
+  if (!users.length) return;
+
+  const now = new Date();
+  let success = 0, failed = 0;
+  const total = users.length;
+
+  for (let i = 0; i < users.length; i++) {
+    const { user_id } = users[i];
+    const link = randomItem(adsterra.links);
+    const tpl = randomItem(adsterra.userTemplates);
+    const replyMarkup = { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] };
+
+    const ok = await sendAdWithRateLimit(user_id, tpl.text, replyMarkup, false);
+    if (ok) {
+      await UserModel.updateOne({ user_id }, { $set: { last_ad_sent: now } });
+      success++;
+    } else {
+      failed++;
+    }
+
+    await delay(adDelay);
+
+    if (i % 100 === 0 && i > 0) {
+      console.log(`[ADS-USERS] Progresso: ${i}/${total} | OK: ${success} | Fail: ${failed}`);
+      await delay(2000);
+    }
   }
 
-  console.log(`[ADS-USERS] Enviado: ${success} | Falhas: ${failed}`);
+  console.log(`[ADS-USERS] Concluído: ${success}/${total} | Falhas: ${failed}`);
 }
 
 async function sendAdsToGroups() {
@@ -1205,36 +1272,38 @@ async function sendAdsToGroups() {
     $or: [{ last_ad_sent: null }, { last_ad_sent: { $lt: cutoff } }],
   })
     .lean()
-    .select("chatId");
+    .select("chatId")
+    .limit(300);
 
   if (!groups.length) return;
 
   const now = new Date();
   let success = 0, failed = 0;
+  const total = groups.length;
 
-  for (const { chatId } of groups) {
-    try {
-      const link = randomItem(adsterra.links);
-      const tpl = randomItem(adsterra.groupTemplates);
-      await safeSendMessage(chatId, tpl.text, {
-        disable_web_page_preview: true,
-        reply_markup: { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] },
-      });
+  for (let i = 0; i < groups.length; i++) {
+    const { chatId } = groups[i];
+    const link = randomItem(adsterra.links);
+    const tpl = randomItem(adsterra.groupTemplates);
+    const replyMarkup = { inline_keyboard: [[{ text: tpl.buttonText, url: link }]] };
+
+    const ok = await sendAdWithRateLimit(chatId, tpl.text, replyMarkup, true);
+    if (ok) {
       await ChatModel.updateOne({ chatId }, { $set: { last_ad_sent: now } });
       success++;
-    } catch (err) {
-      const code = err?.response?.body?.error_code;
-      const desc = err?.response?.body?.description || "";
-      if (code === 403 || (code === 400 && /chat not found|group is deactivated|not enough rights/i.test(desc))) {
-        await ChatModel.deleteOne({ chatId }).catch(() => {});
-      } else {
-        failed++;
-      }
+    } else {
+      failed++;
     }
-    await delay(300);
+
+    await delay(adDelay);
+
+    if (i % 50 === 0 && i > 0) {
+      console.log(`[ADS-GROUPS] Progresso: ${i}/${total} | OK: ${success} | Fail: ${failed}`);
+      await delay(3000);
+    }
   }
 
-    console.log(`[ADS-GROUPS] Enviado: ${success} | Falhas: ${failed}`);
+  console.log(`[ADS-GROUPS] Concluído: ${success}/${total} | Falhas: ${failed}`);
 }
 
 // ─── status cron ──────────────────────────────────────────────────────────────
@@ -1264,19 +1333,22 @@ function sendBotOnlineMessage() {
 }
 
 function sendBotOfflineMessage() {
-    console.log("Toguro encerrado...");
-    bot.sendMessage(groupId, "#Toguro #OFFLINE\n\nBot is now off ...", {
-        ...(logMsgId && { reply_to_message_id: logMsgId }),
-    })
-        .then(() => process.exit(0))
-        .catch(() => process.exit(1));
+  console.log("Toguro encerrado...");
+  bot.sendMessage(groupId, "#Toguro #OFFLINE\n\nBot is now off ...", {
+    ...(logMsgId && { reply_to_message_id: logMsgId }),
+  }).catch(() => {}).finally(() => {
+    setTimeout(() => process.exit(0), 1000);
+  });
 }
 
 function pollingError(error) {
-    console.error("Polling error:", error.message || error);
+  const msg = error?.message ?? String(error);
+  if (msg.includes("ETELEGRAM") || msg.includes("timeout") || msg.includes("Conflict")) {
+    console.warn(`[POLLING-WARN] ${msg}`);
+    return;
+  }
+  console.error("Polling error:", msg);
 }
-
-process.on("SIGINT", sendBotOfflineMessage);
 
 // ─── global callback_query handler ───────────────────────────────────────────
 
@@ -1533,8 +1605,9 @@ exports.initHandler = () => {
   // Monitor de memória: a cada 5min, restart via pm2 se > 500MB
   new CronJob("0 */5 * * * *", async () => {
     const mem = process.memoryUsage();
-    if (mem.heapUsed > 500 * 1024 * 1024) {
-      console.log(`[MEM] Heap ${Math.round(mem.heapUsed / 1024 / 1024)}MB > 500MB — reiniciando via pm2...`);
+    if (mem.heapUsed > 450 * 1024 * 1024) {
+      console.log(`[MEM] Heap ${Math.round(mem.heapUsed / 1024 / 1024)}MB > 450MB — parando polling e encerrando...`);
+      try { bot.stopPolling(); } catch (_) {}
       process.exit(1);
     }
   }, null, true, "America/Sao_Paulo");
