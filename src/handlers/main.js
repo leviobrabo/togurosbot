@@ -823,7 +823,7 @@ async function removeMessage(message) {
 
   const exists = await MessageModel.exists({ message: repliedMessage });
   if (!exists) {
-    return bot.sendMessage(message.chat.id, "Mensagem não encontrada no banco de dados.");
+    return console.log("Mensagem não encontrada no banco de dados.");
   }
 
   await MessageModel.deleteMany({
