@@ -297,7 +297,7 @@ async function answerUser(message) {
   try {
     if (/^[\/.!]/.test(received)) return;
 
-    const sendOpts = isGroup ? {} : { reply_to_message_id: message.message_id };
+    const sendOpts = { reply_to_message_id: message.message_id };
 
   const audioMatch = audioList.find((a) => received === a.keyword);
   if (audioMatch) {

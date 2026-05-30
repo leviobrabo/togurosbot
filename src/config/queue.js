@@ -1,4 +1,4 @@
-const PQueue = require("p-queue").default;
+const PQueue = require("p-queue");
 
 // Telegram Bot API limits:
 // - 30 messages/second globally
