@@ -9,6 +9,14 @@ const userSchema = new Schema(
     lang_code: { type: String, default: "unknown" },
     is_dev: { type: Boolean, default: false },
     last_ad_sent: { type: Date, default: null },
+    first_seen_at: { type: Date, default: null },
+    first_seen_day: { type: String, default: null },
+    last_seen_at: { type: Date, default: null },
+    last_seen_day: { type: String, default: null },
+    active_days: { type: [String], default: [] },
+    source: { type: String, default: "direct" },
+    first_action_at: { type: Date, default: null },
+    action_count: { type: Number, default: 0 },
   },
   { autoIndex: true }
 );
@@ -17,5 +25,10 @@ userSchema.index({ user_id: 1 });
 userSchema.index({ lang_code: 1 });
 userSchema.index({ is_dev: 1 });
 userSchema.index({ last_ad_sent: 1 });
+userSchema.index({ first_seen_day: 1 });
+userSchema.index({ last_seen_day: 1 });
+userSchema.index({ active_days: 1 });
+userSchema.index({ source: 1 });
+userSchema.index({ action_count: -1 });
 
 module.exports = userSchema;
