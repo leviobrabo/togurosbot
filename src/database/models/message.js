@@ -1,37 +1,41 @@
 const { Schema } = require("mongoose");
 
 const EmojiEntitySchema = new Schema({
-  offset: { type: Number, required: true },
-  length: { type: Number, default: 2 },
-  custom_emoji_id: { type: String, required: true },
-});
+  o: { type: Number, required: true },
+  l: { type: Number, default: 2 },
+  c: { type: String, required: true },
+}, { _id: false });
 
 const ReplyItemSchema = new Schema({
-  type: {
+  t: {
     type: String,
-    enum: ["text", "sticker", "custom_emoji"],
-    default: "text",
+    enum: ["s", "e"],
   },
-  value: {
+  v: {
     type: String,
     required: true,
   },
-  emoji_entities: {
+  e: {
     type: [EmojiEntitySchema],
-    default: [],
   },
-});
+}, { _id: false });
 
 const MessageSchema = new Schema({
-  message: {
-    unique: true,
+  l: {
+    type: String,
+    required: true,
+    default: "unknown",
+  },
+  m: {
     required: true,
     type: String,
   },
-  reply: {
+  r: {
     type: [ReplyItemSchema],
     default: [],
   },
 });
+
+MessageSchema.index({ l: 1, m: 1 }, { unique: true });
 
 module.exports = MessageSchema;

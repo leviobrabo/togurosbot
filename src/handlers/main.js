@@ -50,6 +50,107 @@ function is_dev(user_id) {
     return devUsers.includes(user_id.toString());
 }
 
+const GROUP_LANG_OPTIONS = [
+  ["pt-br", "Português"],
+  ["en", "English"],
+  ["es", "Español"],
+  ["it", "Italiano"],
+  ["fr", "Français"],
+  ["de", "Deutsch"],
+  ["ru", "Русский"],
+  ["tr", "Türkçe"],
+  ["id", "Indonesia"],
+  ["ar", "العربية"],
+  ["hi", "हिन्दी"],
+  ["ja", "日本語"],
+  ["ko", "한국어"],
+  ["zh", "中文"],
+  ["unknown", "Automático"],
+];
+
+function normalizeLangCode(langCode) {
+  const normalized = String(langCode || "unknown").trim().toLowerCase().replace("_", "-");
+  if (normalized === "auto") return "unknown";
+  if (/^[a-z]{2,3}(?:-[a-z]{2})?$/.test(normalized)) return normalized;
+  return "unknown";
+}
+
+function buildLangKeyboard() {
+  const buttons = GROUP_LANG_OPTIONS.map(([code, label]) => (
+    { text: label, callback_data: `group_lang:${code}` }
+  ));
+  const rows = [];
+  for (let i = 0; i < buttons.length; i += 2) rows.push(buttons.slice(i, i + 2));
+
+  return {
+    inline_keyboard: rows,
+  };
+}
+
+function uiLocaleFromUser(user) {
+  const lang = normalizeLangCode(user?.language_code);
+  if (lang === "pt" || lang.startsWith("pt-")) return "pt-br";
+  if (lang === "es" || lang.startsWith("es-")) return "es";
+  return "en";
+}
+
+const UI_TEXT = {
+  "pt-br": {
+    groupWelcome: "Olá, me chamo Toguro! Obrigado por me adicionar ao grupo. Vou responder as mensagens da galera aqui kkkkk.",
+    devStart: (name) => `Olá, <b>${name}</b>! Você é um dos desenvolvedores 🧑‍💻\n\nVocê está no painel do Toguro. Use os comandos com responsabilidade.`,
+    userStart: (name) => `Olá, <b>${name}</b>!\n\nEu sou <b>Toguro</b>, um bot que responde mensagens, áudios e figurinhas da galera 😄\n\n📣 <b>Novidades do bot:</b> <a href="https://t.me/lbrabo">@lbrabo</a>\n📚 <b>Cursos:</b> <a href="https://t.me/cursobroff">@cursobroff</a>`,
+    addGroup: "✨ Adicione-me em seu grupo",
+    officialChannel: "📣 Canal Oficial",
+    support: "👨‍💻 Suporte",
+    bugReport: "🐛 Relate Bugs",
+    devCommands: "🗃 Comandos do Dev",
+    useInGroup: "Use este comando em um grupo.",
+    adminOnly: "Apenas admins podem alterar o idioma do grupo.",
+    chooseLang: "Escolha o idioma das respostas do Toguro:",
+    langSet: (lang) => `Idioma das respostas definido para: <b>${lang}</b>`,
+    pong: "𝚙𝚘𝚗𝚐!",
+    pingResult: (ms, uptime) => `𝚙𝚒𝚗𝚐: \`${ms}𝚖𝚜\`\n𝚞𝚙𝚝𝚒𝚖𝚎: \`${uptime}\``,
+  },
+  es: {
+    groupWelcome: "Hola, soy Toguro. Gracias por agregarme al grupo. Voy a responder los mensajes de la gente por aquí kkkkk.",
+    devStart: (name) => `Hola, <b>${name}</b>. Eres uno de los desarrolladores 🧑‍💻\n\nEstás en el panel de Toguro. Usa los comandos con responsabilidad.`,
+    userStart: (name) => `Hola, <b>${name}</b>!\n\nSoy <b>Toguro</b>, un bot que responde mensajes, audios y stickers de la gente 😄\n\n📣 <b>Novedades del bot:</b> <a href="https://t.me/lbrabo">@lbrabo</a>\n📚 <b>Cursos:</b> <a href="https://t.me/cursobroff">@cursobroff</a>`,
+    addGroup: "✨ Agrégame a tu grupo",
+    officialChannel: "📣 Canal Oficial",
+    support: "👨‍💻 Soporte",
+    bugReport: "🐛 Reportar bugs",
+    devCommands: "🗃 Comandos Dev",
+    useInGroup: "Usa este comando en un grupo.",
+    adminOnly: "Solo los admins pueden cambiar el idioma del grupo.",
+    chooseLang: "Elige el idioma de las respuestas de Toguro:",
+    langSet: (lang) => `Idioma de las respuestas definido como: <b>${lang}</b>`,
+    pong: "𝚙𝚘𝚗𝚐!",
+    pingResult: (ms, uptime) => `𝚙𝚒𝚗𝚐: \`${ms}𝚖𝚜\`\n𝚝𝚒𝚎𝚖𝚙𝚘 𝚊𝚌𝚝𝚒𝚟𝚘: \`${uptime}\``,
+  },
+  en: {
+    groupWelcome: "Hi, I'm Toguro. Thanks for adding me to the group. I'll reply to messages here kkkkk.",
+    devStart: (name) => `Hi, <b>${name}</b>. You are one of the developers 🧑‍💻\n\nYou are in the Toguro panel. Use the commands responsibly.`,
+    userStart: (name) => `Hi, <b>${name}</b>!\n\nI'm <b>Toguro</b>, a bot that replies to messages, audio, and stickers from the group 😄\n\n📣 <b>Bot news:</b> <a href="https://t.me/lbrabo">@lbrabo</a>\n📚 <b>Courses:</b> <a href="https://t.me/cursobroff">@cursobroff</a>`,
+    addGroup: "✨ Add me to your group",
+    officialChannel: "📣 Official Channel",
+    support: "👨‍💻 Support",
+    bugReport: "🐛 Report Bugs",
+    devCommands: "🗃 Dev Commands",
+    useInGroup: "Use this command in a group.",
+    adminOnly: "Only admins can change the group language.",
+    chooseLang: "Choose Toguro's reply language:",
+    langSet: (lang) => `Reply language set to: <b>${lang}</b>`,
+    pong: "𝚙𝚘𝚗𝚐!",
+    pingResult: (ms, uptime) => `𝚙𝚒𝚗𝚐: \`${ms}𝚖𝚜\`\n𝚞𝚙𝚝𝚒𝚖𝚎: \`${uptime}\``,
+  },
+};
+
+function uiText(user, key, ...args) {
+  const locale = uiLocaleFromUser(user);
+  const value = UI_TEXT[locale][key] || UI_TEXT.en[key];
+  return typeof value === "function" ? value(...args) : value;
+}
+
 const forbiddenWords = palavrasProibidas.palavras_proibidas;
 
 function containsUrl(text) {
@@ -97,6 +198,51 @@ function buildReplyItem(message) {
   return { type: "text", value: text, emoji_entities: [] };
 }
 
+function isGroupChat(chat) {
+  return chat?.type === "group" || chat?.type === "supergroup";
+}
+
+async function resolveLearningLang(message) {
+  if (isGroupChat(message.chat)) {
+    const chat = await ChatModel.findOne({ chatId: message.chat.id }).lean().catch(() => null);
+    const groupLang = normalizeLangCode(chat?.lang_code);
+    if (groupLang !== "unknown") return groupLang;
+  }
+
+  return normalizeLangCode(message.from?.language_code);
+}
+
+function buildMessageQuery(lang, value) {
+  return { l: normalizeLangCode(lang), m: value };
+}
+
+function getRepliesFromDoc(doc) {
+  if (!doc) return [];
+  const compactReplies = Array.isArray(doc.r) ? doc.r : [];
+  const legacyReplies = Array.isArray(doc.reply) ? doc.reply : [];
+  return compactReplies.concat(legacyReplies);
+}
+
+function toStoredEmojiEntities(emojiEntities) {
+  if (!Array.isArray(emojiEntities) || emojiEntities.length === 0) return undefined;
+  return emojiEntities.map((e) => ({
+    o: e.offset ?? e.o,
+    l: e.length ?? e.l ?? 2,
+    c: e.custom_emoji_id ?? e.c,
+  })).filter((e) => e.o !== undefined && e.c);
+}
+
+function toStoredReplyItem(replyItem) {
+  const stored = { v: replyItem.value };
+  if (replyItem.type === "sticker") stored.t = "s";
+  if (replyItem.type === "custom_emoji") stored.t = "e";
+
+  const emojiEntities = toStoredEmojiEntities(replyItem.emoji_entities);
+  if (emojiEntities?.length) stored.e = emojiEntities;
+
+  return stored;
+}
+
 function buildMessageKey(message) {
   if (message.sticker) return message.sticker.file_unique_id;
   return message.text || "";
@@ -105,10 +251,10 @@ function buildMessageKey(message) {
 function buildEntitiesFromStored(emojiEntities) {
   if (!emojiEntities || !emojiEntities.length) return undefined;
   return emojiEntities.map((e) => ({
-    offset: e.offset,
-    length: e.length,
+    offset: e.offset ?? e.o,
+    length: e.length ?? e.l,
     type: "custom_emoji",
-    custom_emoji_id: e.custom_emoji_id,
+    custom_emoji_id: e.custom_emoji_id ?? e.c,
   }));
 }
 
@@ -125,6 +271,17 @@ function normalizeReplyItem(raw) {
     const str = chars.join("");
     const isStickerFileId = /^[A-Za-z0-9_-]{30,}$/.test(str);
     return { type: isStickerFileId ? "sticker" : "text", value: str, emoji_entities: [] };
+  }
+  if (item.v) {
+    const type = item.t === "s" ? "sticker" : item.t === "e" ? "custom_emoji" : "text";
+    const emojiEntities = Array.isArray(item.e)
+      ? item.e.map((e) => ({
+          offset: e.o,
+          length: e.l || 2,
+          custom_emoji_id: e.c,
+        })).filter((e) => e.offset !== undefined && e.custom_emoji_id)
+      : [];
+    return { type, value: item.v, emoji_entities: emojiEntities };
   }
   if (item.custom_emoji_ids && !item.emoji_entities) {
     item.emoji_entities = [];
@@ -239,58 +396,47 @@ async function sendPaginated(chatId, userId, type, pages) {
 
 // ─── learning system ──────────────────────────────────────────────────────────
 
-async function deleteMessageIfExists(repliedMessage, replyValue) {
+async function deleteMessageIfExists(lang, repliedMessage, replyValue) {
   const found = await MessageModel.findOne({
-    $or: [{ message: repliedMessage }, { "reply.value": replyValue }],
+    $or: [
+      { l: lang, m: repliedMessage },
+      { l: lang, "r.v": replyValue },
+    ],
   });
   if (found) await MessageModel.deleteOne({ _id: found._id });
 }
 
-async function createMessageAndAddReply(message) {
+async function addReply(message) {
+  if (isGroupChat(message.chat)) {
+    const groupSaved = await ensureGroupSaved(message);
+    if (!groupSaved) return;
+  }
+
   const repliedMessage = message.reply_to_message
     ? buildMessageKey(message.reply_to_message)
     : null;
   const replyItem = buildReplyItem(message);
+  const lang = await resolveLearningLang(message);
 
   if (!repliedMessage || !replyItem.value) return;
   if (/^[\/.!]/.test(repliedMessage) || (/^[\/.!]/.test(replyItem.value) && replyItem.type === "text")) return;
   if (containsUrl(repliedMessage) || (replyItem.type === "text" && containsUrl(replyItem.value))) {
-    await deleteMessageIfExists(repliedMessage, replyItem.value);
+    await deleteMessageIfExists(lang, repliedMessage, replyItem.value);
     return;
   }
   if (hasForbiddenWord(repliedMessage) || (replyItem.type === "text" && hasForbiddenWord(replyItem.value))) {
-    await deleteMessageIfExists(repliedMessage, replyItem.value);
+    await deleteMessageIfExists(lang, repliedMessage, replyItem.value);
     return;
   }
 
-  await new MessageModel({ message: repliedMessage, reply: [replyItem] }).save().catch(() => {});
-}
-
-async function addReply(message) {
-  const repliedMessage = message.reply_to_message
-    ? buildMessageKey(message.reply_to_message)
-    : null;
-  const replyItem = buildReplyItem(message);
-
-  if (/^[\/.!]/.test(repliedMessage)) return;
-  if (containsUrl(repliedMessage) || (replyItem.type === "text" && containsUrl(replyItem.value))) {
-    await deleteMessageIfExists(repliedMessage, replyItem.value);
-    return;
-  }
-  if (hasForbiddenWord(repliedMessage) || (replyItem.type === "text" && hasForbiddenWord(replyItem.value))) {
-    await deleteMessageIfExists(repliedMessage, replyItem.value);
-    return;
-  }
-
-  const exists = await MessageModel.exists({ message: repliedMessage });
-  if (exists) {
-    await MessageModel.findOneAndUpdate(
-      { message: repliedMessage },
-      { $push: { reply: { $each: [replyItem], $slice: REPLY_MAX_SIZE } } }
-    );
-  } else {
-    await createMessageAndAddReply(message);
-  }
+  await MessageModel.findOneAndUpdate(
+    buildMessageQuery(lang, repliedMessage),
+    {
+      $setOnInsert: { l: lang, m: repliedMessage },
+      $push: { r: { $each: [toStoredReplyItem(replyItem)], $slice: REPLY_MAX_SIZE } },
+    },
+    { upsert: true }
+  ).catch(() => {});
 }
 
 // ─── answer user ──────────────────────────────────────────────────────────────
@@ -298,7 +444,7 @@ async function addReply(message) {
 async function answerUser(message) {
   const received = buildMessageKey(message);
   const chatId = message.chat.id;
-  const isGroup = message.chat.type === "group" || message.chat.type === "supergroup";
+  const isGroup = isGroupChat(message.chat);
 
   if (isGroup) {
     const groupSaved = await ensureGroupSaved(message);
@@ -336,9 +482,11 @@ async function answerUser(message) {
     return;
   }
 
-    const doc = await MessageModel.findOne({ message: received });
-    if (doc && doc.reply.length) {
-      const validReplies = doc.reply
+    const lang = await resolveLearningLang(message);
+    const doc = await MessageModel.findOne(buildMessageQuery(lang, received));
+    const replies = getRepliesFromDoc(doc);
+    if (doc && replies.length) {
+      const validReplies = replies
         .map(normalizeReplyItem)
         .filter((r) => r && r.value);
       if (!validReplies.length) return;
@@ -498,13 +646,13 @@ async function saveNewChatMembers(msg) {
     enqueue(
       () => bot.sendMessage(
         chatId,
-        "Olá, me chamo Toguro! Obrigado por me adicionar ao grupo. Vou responder as mensagens da galera aqui kkkkk.",
+        uiText(msg.from, "groupWelcome"),
         {
           reply_markup: {
             inline_keyboard: [
               [
-                { text: "📣 Canal Oficial", url: "https://t.me/lbrabo" },
-                { text: "🐛 Relate Bugs", url: "https://t.me/kylorensbot" },
+                { text: uiText(msg.from, "officialChannel"), url: "https://t.me/lbrabo" },
+                { text: uiText(msg.from, "bugReport"), url: "https://t.me/kylorensbot" },
               ],
             ],
           },
@@ -635,15 +783,8 @@ async function start(message) {
     const userId = message.from.id;
     const firstName = message.from.first_name;
 
-    const devText =
-        `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\n` +
-        `Você está no painel do Toguro. Use os comandos com responsabilidade.`;
-
-    const userText =
-        `Olá, <b>${firstName}</b>!\n\n` +
-        `Eu sou <b>Toguro</b>, um bot que responde mensagens, áudios e figurinhas da galera 😄\n\n` +
-        `📣 <b>Novidades do bot:</b> <a href="https://t.me/lbrabo">@lbrabo</a>\n` +
-        `📚 <b>Cursos:</b> <a href="https://t.me/cursobroff">@cursobroff</a>`;
+    const devText = uiText(message.from, "devStart", firstName);
+    const userText = uiText(message.from, "userStart", firstName);
 
   if (is_dev(userId)) {
     await enqueue(
@@ -654,10 +795,10 @@ async function start(message) {
           inline_keyboard: [
             [{ text: "📦 Github", url: "https://github.com/leviobrabo/togurosbot" }],
             [
-              { text: "📣 Canal", url: "https://t.me/lbrabo" },
-              { text: "👨‍💻 Suporte", url: "https://t.me/kylorensbot" },
+              { text: uiText(message.from, "officialChannel"), url: "https://t.me/lbrabo" },
+              { text: uiText(message.from, "support"), url: "https://t.me/kylorensbot" },
             ],
-            [{ text: "🗃 Comandos do Dev", callback_data: "dev_commands" }],
+            [{ text: uiText(message.from, "devCommands"), callback_data: "dev_commands" }],
           ],
         },
       }),
@@ -670,10 +811,10 @@ async function start(message) {
         disable_web_page_preview: true,
         reply_markup: {
           inline_keyboard: [
-            [{ text: "✨ Adicione-me em seu grupo", url: "https://t.me/togurosbot?startgroup=true" }],
+            [{ text: uiText(message.from, "addGroup"), url: "https://t.me/togurosbot?startgroup=true" }],
             [
-              { text: "📣 Canal Oficial", url: "https://t.me/lbrabo" },
-              { text: "👨‍💻 Suporte", url: "https://t.me/kylorensbot" },
+              { text: uiText(message.from, "officialChannel"), url: "https://t.me/lbrabo" },
+              { text: uiText(message.from, "support"), url: "https://t.me/kylorensbot" },
             ],
             [{ text: "📦 Github", url: "https://github.com/leviobrabo/togurosbot" }],
           ],
@@ -942,15 +1083,16 @@ async function removeMessage(message) {
     return enqueue(() => bot.sendMessage(message.chat.id, "Responda a uma mensagem para deletar do banco."), PRIORITY.HIGH);
   }
 
-  const exists = await MessageModel.exists({ message: repliedMessage });
+  const lang = await resolveLearningLang(message);
+  const exists = await MessageModel.exists(buildMessageQuery(lang, repliedMessage));
   if (!exists) {
     return console.log("Mensagem não encontrada no banco de dados.");
   }
 
   await MessageModel.deleteMany({
     $or: [
-      { message: repliedMessage },
-      { "reply.value": repliedMessage },
+      { l: lang, m: repliedMessage },
+      { l: lang, "r.v": repliedMessage },
     ],
   });
 
@@ -960,6 +1102,53 @@ async function removeMessage(message) {
       `✅ Deletado por <a href="tg://user?id=${message.from.id}">${message.from.first_name}</a>.\n\nTodas as respostas associadas foram apagadas.`,
       { parse_mode: "HTML", reply_to_message_id: message.message_id }
     ),
+    PRIORITY.HIGH
+  );
+}
+
+// ─── /lang ───────────────────────────────────────────────────────────────────
+
+async function isGroupAdminOrOwner(chatId, userId) {
+  if (is_dev(userId)) return true;
+
+  const member = await bot.getChatMember(chatId, userId).catch(() => null);
+  return member?.status === "creator" || member?.status === "administrator";
+}
+
+function langLabel(langCode) {
+  const normalized = normalizeLangCode(langCode);
+  if (normalized === "pt") return "Português";
+  const found = GROUP_LANG_OPTIONS.find(([code]) => code === normalized);
+  return found ? found[1] : normalized;
+}
+
+async function setGroupLang(message) {
+  if (!isGroupChat(message.chat)) {
+    return enqueue(() => bot.sendMessage(message.chat.id, uiText(message.from, "useInGroup")), PRIORITY.HIGH);
+  }
+
+  const allowed = await isGroupAdminOrOwner(message.chat.id, message.from.id);
+  if (!allowed) {
+    return enqueue(() => bot.sendMessage(message.chat.id, uiText(message.from, "adminOnly")), PRIORITY.HIGH);
+  }
+
+  const groupSaved = await ensureGroupSaved(message);
+  if (!groupSaved) return;
+
+  const [, rawLang] = (message.text || "").trim().split(/\s+/, 2);
+  if (!rawLang) {
+    return enqueue(
+      () => bot.sendMessage(message.chat.id, uiText(message.from, "chooseLang"), {
+        reply_markup: buildLangKeyboard(),
+      }),
+      PRIORITY.HIGH
+    );
+  }
+
+  const lang = normalizeLangCode(rawLang);
+  await ChatModel.updateOne({ chatId: message.chat.id }, { $set: { lang_code: lang } });
+  return enqueue(
+    () => bot.sendMessage(message.chat.id, uiText(message.from, "langSet", langLabel(lang)), { parse_mode: "HTML" }),
     PRIORITY.HIGH
   );
 }
@@ -1586,6 +1775,43 @@ function registerCallbackHandler() {
 
         if (data === "noop") return;
 
+  if (data.startsWith("group_lang:")) {
+    if (!isGroupChat(q.message?.chat)) return;
+
+    const allowed = await isGroupAdminOrOwner(q.message.chat.id, q.from.id);
+    if (!allowed) {
+      await enqueue(
+        () => bot.sendMessage(q.message.chat.id, uiText(q.from, "adminOnly")),
+        PRIORITY.HIGH
+      ).catch(() => {});
+      return;
+    }
+
+    const lang = normalizeLangCode(data.slice("group_lang:".length));
+    await ChatModel.updateOne(
+      { chatId: q.message.chat.id },
+      {
+        $setOnInsert: {
+          chatName: q.message.chat.title || q.message.chat.username || `Group-${q.message.chat.id}`,
+          chat_type: q.message.chat.type || "unknown",
+          is_ban: false,
+        },
+        $set: { lang_code: lang },
+      },
+      { upsert: true }
+    ).catch(() => {});
+
+    await enqueue(
+      () => bot.editMessageText(uiText(q.from, "langSet", langLabel(lang)), {
+        chat_id: q.message.chat.id,
+        message_id: q.message.message_id,
+        parse_mode: "HTML",
+      }),
+      PRIORITY.HIGH
+    ).catch(() => {});
+    return;
+  }
+
   if (data === "dev_commands") {
     const commands = [
       "/stats — Estatísticas com paginação e breakdown por idioma",
@@ -1619,9 +1845,7 @@ function registerCallbackHandler() {
 
   if (data === "back_to_start") {
     const firstName = q.from.first_name;
-    const devText =
-      `Olá, <b>${firstName}</b>! Você é um dos desenvolvedores 🧑‍💻\n\n` +
-      `Você está no painel do Toguro. Use os comandos com responsabilidade.`;
+    const devText = uiText(q.from, "devStart", firstName);
     await enqueue(
       () => bot.editMessageText(devText, {
         parse_mode: "HTML",
@@ -1632,10 +1856,10 @@ function registerCallbackHandler() {
           inline_keyboard: [
             [{ text: "📦 Github", url: "https://github.com/leviobrabo/togurosbot" }],
             [
-              { text: "📣 Canal", url: "https://t.me/lbrabo" },
-              { text: "👨‍💻 Suporte", url: "https://t.me/kylorensbot" },
+              { text: uiText(q.from, "officialChannel"), url: "https://t.me/lbrabo" },
+              { text: uiText(q.from, "support"), url: "https://t.me/kylorensbot" },
             ],
-            [{ text: "🗃 Comandos do Dev", callback_data: "dev_commands" }],
+            [{ text: uiText(q.from, "devCommands"), callback_data: "dev_commands" }],
           ],
         },
       }),
@@ -1731,57 +1955,6 @@ async function migrateGroupsLangCode() {
 
 const REPLY_MAX_SIZE = 50;
 
-async function migrateReplyFormat() {
-  console.log("[MIGRATE-REPLY] Iniciando migração (batch com cursor)...");
-  let processed = 0;
-  let migrated = 0;
-  const batchSize = 100;
-  let hasMore = true;
-  let lastId = null;
-
-  while (hasMore) {
-    const query = lastId ? { _id: { $gt: lastId } } : {};
-    const docs = await MessageModel.find(query)
-      .sort({ _id: 1 })
-      .limit(batchSize)
-      .lean();
-
-    if (!docs.length) { hasMore = false; break; }
-    lastId = docs[docs.length - 1]._id;
-
-    for (const doc of docs) {
-      processed++;
-      if (!Array.isArray(doc.reply) || doc.reply.length === 0) continue;
-      const needsMigration = doc.reply.some(
-        (item) => typeof item === "string" || item instanceof String || (item.custom_emoji_ids && !item.emoji_entities)
-      );
-      if (!needsMigration) continue;
-
-      const newReply = doc.reply.map((item) => {
-        if (typeof item === "string" || item instanceof String) {
-          const isStickerFileId = /^[A-Za-z0-9_-]{30,}$/.test(item);
-          return { type: isStickerFileId ? "sticker" : "text", value: item, emoji_entities: [] };
-        }
-        if (item.custom_emoji_ids && !item.emoji_entities) {
-          item.emoji_entities = [];
-          delete item.custom_emoji_ids;
-        }
-        return item;
-      });
-
-      await MessageModel.updateOne({ _id: doc._id }, { $set: { reply: newReply } }).catch(() => {});
-      migrated++;
-    }
-
-    if (processed % 500 === 0) {
-      console.log(`[MIGRATE-REPLY] Progresso: ${processed} processados, ${migrated} migrados`);
-      await delay(100);
-    }
-  }
-
-  console.log(`[MIGRATE-REPLY] Concluída: ${migrated} migrados de ${processed} total.`);
-}
-
 // ─── exports ──────────────────────────────────────────────────────────────────
 
 exports.initHandler = () => {
@@ -1800,6 +1973,7 @@ exports.initHandler = () => {
     bot.onText(/^\/unban/, unban);
     bot.onText(/^\/banned/, banned);
     bot.onText(/^\/delmsg/, removeMessage);
+    bot.onText(/^\/lang(?:\s+.+)?$/, setGroupLang);
     bot.onText(/^\/devs/, devs);
     bot.onText(/^\/dbstats/, dbstats);
     bot.onText(/^\/productstats$/, productstats);
@@ -1808,11 +1982,11 @@ exports.initHandler = () => {
 
   bot.onText(/\/ping/, async (msg) => {
     const start = new Date();
-    const replied = await enqueue(() => bot.sendMessage(msg.chat.id, "𝚙𝚘𝚗𝚐!"), PRIORITY.HIGH);
+    const replied = await enqueue(() => bot.sendMessage(msg.chat.id, uiText(msg.from, "pong")), PRIORITY.HIGH);
     const ms = new Date() - start;
     await enqueue(
       () => bot.editMessageText(
-        `𝚙𝚒𝚗𝚐: \`${ms}𝚖𝚜\`\n𝚞𝚙𝚝𝚒𝚖𝚎: \`${timeFormatter(process.uptime())}\``,
+        uiText(msg.from, "pingResult", ms, timeFormatter(process.uptime())),
         { chat_id: replied.chat.id, message_id: replied.message_id, parse_mode: "Markdown" }
       ),
       PRIORITY.HIGH
@@ -1833,9 +2007,6 @@ exports.initHandler = () => {
   // Ads para grupos: 30min depois dos usuários (nunca paralelo)
   new CronJob("0 30 10 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
   new CronJob("0 30 16 * * *", sendAdsToGroups, null, true, "America/Sao_Paulo");
-
-  // Migração de reply: dia 1 de cada mês às 03:00
-  new CronJob("0 0 3 1 * *", migrateReplyFormat, null, true, "America/Sao_Paulo");
 
   // Monitor de memória: a cada 5min, restart via pm2 se > 500MB
   new CronJob("0 */5 * * * *", async () => {
