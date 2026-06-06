@@ -14,7 +14,7 @@ async function gracefulShutdown(signal) {
   console.log(`[SHUTDOWN] Recebido ${signal}, encerrando graciosamente...`);
   server.close();
   const { bot } = require("./bot");
-  bot.stopPolling();
+  await bot.stopPolling().catch(() => {});
   setTimeout(() => process.exit(0), 3000);
 }
 
@@ -23,8 +23,9 @@ process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 initHandler();
 
-const server = http.createServer((request, response) =>
-  response.writeHead(200, { "content-type": "application/json" })
-);
+const server = http.createServer((request, response) => {
+  response.writeHead(200, { "content-type": "application/json" });
+  response.end(JSON.stringify({ ok: true }));
+});
 
 server.listen(port);

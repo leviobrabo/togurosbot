@@ -1,16 +1,16 @@
-process.on("unhandledRejection", (reason, promise) => {
+process.on("unhandledRejection", (reason) => {
   const errorMessage = reason?.message ?? String(reason);
   const errorCode = reason?.response?.body?.error_code;
   const desc = reason?.response?.body?.description || "";
 
   if (errorCode === 429) {
     const retryAfter = reason?.response?.body?.parameters?.retry_after || 5;
-    console.warn(`[RATE-LIMIT] 429 — retry after ${retryAfter}s: ${errorMessage}`);
+    console.warn(`[RATE-LIMIT] 429 - retry after ${retryAfter}s: ${errorMessage}`);
     return;
   }
 
   if (errorCode === 400 || errorCode === 403) {
-    console.warn(`[TG-API] ${errorCode} — ${desc || errorMessage}`);
+    console.warn(`[TG-API] ${errorCode} - ${desc || errorMessage}`);
     return;
   }
 

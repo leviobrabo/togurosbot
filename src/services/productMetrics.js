@@ -21,19 +21,19 @@ function pct(part, total) {
 
 function buildProductMetricsText(metrics) {
   return (
-    `📈 <b>Métricas de Produto - Toguro</b>\n\n` +
-    `👥 <b>Total:</b> <code>${metrics.totalUsers}</code>\n` +
-    `☀️ <b>DAU:</b> <code>${metrics.dau}</code>\n` +
-    `📅 <b>WAU:</b> <code>${metrics.wau}</code>\n` +
-    `🗓 <b>MAU:</b> <code>${metrics.mau}</code>\n` +
-    `🔥 <b>WAU / Total:</b> <code>${metrics.wauTotalRate}</code>\n\n` +
-    `🔁 <b>Retenção</b>\n` +
+    `<b>Metricas de Produto - Toguro</b>\n\n` +
+    `<b>Total:</b> <code>${metrics.totalUsers}</code>\n` +
+    `<b>DAU:</b> <code>${metrics.dau}</code>\n` +
+    `<b>WAU:</b> <code>${metrics.wau}</code>\n` +
+    `<b>MAU:</b> <code>${metrics.mau}</code>\n` +
+    `<b>WAU / Total:</b> <code>${metrics.wauTotalRate}</code>\n\n` +
+    `<b>Retencao</b>\n` +
     `D1: <code>${metrics.retention.d1Rate}</code> (${metrics.retention.d1Returned}/${metrics.retention.d1Cohort})\n` +
     `D7: <code>${metrics.retention.d7Rate}</code> (${metrics.retention.d7Returned}/${metrics.retention.d7Cohort})\n` +
     `D30: <code>${metrics.retention.d30Rate}</code> (${metrics.retention.d30Returned}/${metrics.retention.d30Cohort})\n\n` +
-    `😶 <b>Silenciosos 30d:</b> <code>${metrics.silent30d}</code>\n` +
-    `⭐ <b>VIPs por ações:</b> <code>${metrics.vipUsers.length}</code>\n\n` +
-    `💰 <b>Receita / churn:</b> ainda sem evento financeiro no banco.`
+    `<b>Silenciosos 30d:</b> <code>${metrics.silent30d}</code>\n` +
+    `<b>VIPs por acoes:</b> <code>${metrics.vipUsers.length}</code>\n\n` +
+    `<b>Receita / churn:</b> ainda sem evento financeiro no banco.`
   );
 }
 

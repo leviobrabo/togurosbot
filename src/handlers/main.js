@@ -14,34 +14,8 @@ const groupId = process.env.groupId;
 const logMsgId = parseInt(process.env.LOG_MSG_ID) || null;
 const channelStatusId = process.env.channelStatusId;
 
-let crashCount = 0;
-let lastCrashTime = 0;
-const CRASH_LIMIT = 5;
-const CRASH_WINDOW = 60000;
-
-function checkCrashLoop() {
-  const now = Date.now();
-  if (now - lastCrashTime > CRASH_WINDOW) crashCount = 0;
-  crashCount++;
-  lastCrashTime = now;
-  if (crashCount >= CRASH_LIMIT) {
-    console.error(`[CRASH-LOOP] ${crashCount} crashes em ${CRASH_WINDOW / 1000}s — parando para evitar loop.`);
-    process.exit(2);
-  }
-}
-
-process.on("uncaughtException", (err) => {
-  const msg = err?.message ?? String(err);
-  if (msg.includes("ETELEGRAM") || msg.includes("polling") || msg.includes("Conflict")) return;
-  checkCrashLoop();
-});
-
-process.on("unhandledRejection", (reason) => {
-  const msg = reason?.message ?? String(reason);
-  const code = reason?.response?.body?.error_code;
-  if (code === 429 || msg.includes("ETELEGRAM") || msg.includes("polling")) return;
-  checkCrashLoop();
-});
+const savedMessageKeys = new Set();
+const SAVED_MESSAGE_KEYS_MAX = 1000;
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
@@ -175,6 +149,23 @@ function randomItem(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
+function rememberSavedMessage(key) {
+  if (!key) return;
+  savedMessageKeys.add(key);
+  if (savedMessageKeys.size > SAVED_MESSAGE_KEYS_MAX) {
+    const oldestKey = savedMessageKeys.values().next().value;
+    savedMessageKeys.delete(oldestKey);
+  }
+}
+
+function userSaveKey(message) {
+  const userId = message?.from?.id;
+  const chatId = message?.chat?.id;
+  const messageId = message?.message_id;
+  if (!userId || !chatId || !messageId) return null;
+  return `${chatId}:${userId}:${messageId}`;
+}
+
 function extractEmojiEntities(entities) {
   if (!Array.isArray(entities)) return [];
   return entities
@@ -306,13 +297,21 @@ function runBackgroundTask(name, task) {
   });
 }
 
+function isInvalidUserError(err) {
+  const code = err?.response?.body?.error_code;
+  const desc = err?.response?.body?.description || "";
+  return code === 403 || (code === 400 && /chat not found|bot can't initiate/i.test(desc));
+}
+
 // ─── retry mechanism (com retry_after automático) ──────────────────────────────
 
 async function retryWithBackoff(fn, maxRetries = 3, delayMs = 1000) {
+  let lastError;
   for (let i = 0; i < maxRetries; i++) {
     try {
       return await fn();
     } catch (error) {
+      lastError = error;
       const errorCode = error?.response?.body?.error_code;
       if (errorCode === 429) {
         const retryAfter = error?.response?.body?.parameters?.retry_after || 10;
@@ -324,6 +323,7 @@ async function retryWithBackoff(fn, maxRetries = 3, delayMs = 1000) {
       await delay(delayMs * Math.pow(2, i));
     }
   }
+  throw lastError;
 }
 
 async function safeSendMessage(chatId, text, options = {}) {
@@ -350,6 +350,21 @@ async function safeSendPhoto(chatId, photoUrl, options = {}) {
 async function safeCopyMessage(chatId, fromChatId, messageId) {
   return retryWithBackoff(async () => {
     return await bot.copyMessage(chatId, fromChatId, messageId);
+  });
+}
+
+async function sendFreeBroadcastMessage(userId, text, options = {}) {
+  return safeSendMessage(userId, text, {
+    ...options,
+    allow_paid_broadcast: false,
+  });
+}
+
+async function copyFreeBroadcastMessage(userId, fromChatId, messageId) {
+  return retryWithBackoff(async () => {
+    return await bot.copyMessage(userId, fromChatId, messageId, {
+      allow_paid_broadcast: false,
+    });
   });
 }
 
@@ -565,41 +580,7 @@ async function main(message) {
 // ─── user / group registration ────────────────────────────────────────────────
 
 async function saveUserInformation(message) {
-  const user = message.from;
-  if (!user || user.is_bot) return;
-
-  try {
-    const langCode = user.language_code || "unknown";
-    const now = new Date();
-    const today = dateKey(now);
-    const source = extractStartSource(message.text || "");
-    const isAction = Boolean(message.text && !message.text.startsWith("/start"));
-    const setOnInsert = {
-      user_id: user.id,
-      is_dev: false,
-      first_seen_at: now,
-      first_seen_day: today,
-      source,
-      ...(isAction ? { first_action_at: now } : {}),
-    };
-    await UserModel.findOneAndUpdate(
-      { user_id: user.id },
-      {
-        $setOnInsert: setOnInsert,
-        $set: {
-          username: user.username,
-          firstname: user.first_name,
-          lastname: user.last_name,
-          lang_code: langCode,
-          last_seen_at: now,
-          last_seen_day: today,
-        },
-        $addToSet: { active_days: today },
-        $inc: { action_count: 1 },
-      },
-      { upsert: true }
-    );
-  } catch (err) {}
+  await ensureUserSaved(message);
 }
 
 async function saveNewChatMembers(msg) {
@@ -623,7 +604,6 @@ async function saveNewChatMembers(msg) {
     return;
     }
 
-    const isNew = chat.wasNew;
     const botUser = await bot.getMe();
     const addedNow = msg.new_chat_members?.some((m) => m.id === botUser.id);
     const chatLink = msg.chat.username ? `@${msg.chat.username}` : "Private Group";
@@ -693,10 +673,15 @@ async function ensureUserSaved(message) {
   const user = message.from;
   if (!user || user.is_bot) return false;
 
+  const saveKey = userSaveKey(message);
+  if (saveKey && savedMessageKeys.has(saveKey)) return true;
+  if (saveKey) rememberSavedMessage(saveKey);
+
   const langCode = user.language_code || "unknown";
   const now = new Date();
   const today = dateKey(now);
   const source = extractStartSource(message.text || "");
+  const isAction = Boolean(message.text && !message.text.startsWith("/start"));
   const update = {
     $setOnInsert: {
       user_id: user.id,
@@ -704,7 +689,7 @@ async function ensureUserSaved(message) {
       first_seen_at: now,
       first_seen_day: today,
       source,
-      ...(message.text && !message.text.startsWith("/start") ? { first_action_at: now } : {}),
+      ...(isAction ? { first_action_at: now } : {}),
     },
     $set: {
       username: user.username,
@@ -724,9 +709,16 @@ async function ensureUserSaved(message) {
       update,
       { upsert: true, new: true }
     );
+    if (isAction && !result.first_action_at) {
+      await UserModel.updateOne(
+        { user_id: user.id, first_action_at: null },
+        { $set: { first_action_at: now } }
+      ).catch(() => {});
+    }
     if (result._id) return true;
     return false;
   } catch (err) {
+    if (saveKey) savedMessageKeys.delete(saveKey);
     console.error(`[ENSURE-USER-ERROR] Falha ao salvar usuário ${user.id}:`, err.message);
     return false;
   }
@@ -1216,7 +1208,7 @@ async function unlockbulk(message) {
   const before = getBulkStatus();
   const unlocked = forceEndBulk();
   const text = unlocked
-    ? `? Bulk liberado: <code>${before.type}</code>`
+    ? `Bulk liberado: <code>${before.type}</code>`
     : "Nenhum bulk ativo para liberar.";
 
   await enqueue(() => bot.sendMessage(message.chat.id, text, { parse_mode: "HTML" }), PRIORITY.HIGH);
@@ -1234,13 +1226,6 @@ async function syncdb(message) {
     const sentMsg = await enqueue(() => bot.sendMessage(message.chat.id, "🔄 <i>Sincronizando banco de dados...</i>", { parse_mode: "HTML" }), PRIORITY.HIGH);
 
     try {
-        // Obter lista de chats do bot
-        const botChats = await bot.getChatAdministrators(-1).catch(() => []);
-        
-        // Nota: getChatAdministrators funciona apenas para grupos específicos
-        // Uma abordagem melhor é usar o histórico de mensagens
-        // Por enquanto, vamos apenas avisar que a sincronização de grupos é feita automaticamente
-        
         const totalUsers = await UserModel.countDocuments();
         const totalGroups = await ChatModel.countDocuments();
         
@@ -1302,18 +1287,10 @@ async function bc(msg) {
       for (let i = 0; i < ulist.length; i++) {
         const { user_id } = ulist[i];
         try {
-          await enqueue(
-            () => safeSendMessage(user_id, text, { disable_web_page_preview: !webPreview }),
-            PRIORITY.LOW
-          );
+          await sendFreeBroadcastMessage(user_id, text, { disable_web_page_preview: !webPreview });
           success++;
         } catch (err) {
-          const code = err?.response?.body?.error_code;
-          const desc = err?.response?.body?.description || "";
-          if (code === 403) {
-            blocked++;
-            await UserModel.deleteOne({ user_id }).catch(() => {});
-          } else if (code === 400 && /chat not found|bot can't initiate/i.test(desc)) {
+          if (isInvalidUserError(err)) {
             blocked++;
             await UserModel.deleteOne({ user_id }).catch(() => {});
           } else {
@@ -1329,10 +1306,10 @@ async function bc(msg) {
             () => bot.editMessageText(
               `╭─❑ 「 <b>Broadcast em Progresso</b> 」 ❑\n` +
               `│ 📤 Progresso: <code>${pct}%</code>\n` +
+              `│ 🆓 Modo: <code>gratuito</code>\n` +
               `│ ✅ Enviados: <code>${success}</code>\n` +
               `│ 🚫 Bloqueados: <code>${blocked}</code>\n` +
               `│ ❌ Falhas: <code>${failed}</code>\n` +
-              `│ 📊 Fila: <code>${queueSize()}</code>\n` +
               `╰❑`,
               { chat_id: sentMsg.chat.id, message_id: sentMsg.message_id, parse_mode: "HTML" }
             ),
@@ -1347,6 +1324,7 @@ async function bc(msg) {
         () => bot.editMessageText(
           `╭─❑ 「 <b>Broadcast Concluído</b> 」 ❑\n` +
           `│ 📤 Total: <code>${total}</code>\n` +
+          `│ 🆓 Modo: <code>gratuito</code>\n` +
           `│ ✅ Enviados: <code>${success}</code>\n` +
           `│ 🚫 Bloqueados (removidos): <code>${blocked}</code>\n` +
           `│ ❌ Falhas: <code>${failed}</code>\n` +
@@ -1388,18 +1366,10 @@ async function broadcast(msg) {
       for (let i = 0; i < ulist.length; i++) {
         const { user_id } = ulist[i];
         try {
-          await enqueue(
-            () => safeCopyMessage(user_id, msg.chat.id, reply.message_id),
-            PRIORITY.LOW
-          );
+          await copyFreeBroadcastMessage(user_id, msg.chat.id, reply.message_id);
           success++;
         } catch (err) {
-          const code = err?.response?.body?.error_code;
-          const desc = err?.response?.body?.description || "";
-          if (code === 403) {
-            blocked++;
-            await UserModel.deleteOne({ user_id }).catch(() => {});
-          } else if (code === 400 && /chat not found|bot can't initiate/i.test(desc)) {
+          if (isInvalidUserError(err)) {
             blocked++;
             await UserModel.deleteOne({ user_id }).catch(() => {});
           } else {
@@ -1415,10 +1385,10 @@ async function broadcast(msg) {
             () => bot.editMessageText(
               `╭─❑ 「 <b>Broadcast em Progresso</b> 」 ❑\n` +
               `│ 📤 Progresso: <code>${pct}%</code>\n` +
+              `│ 🆓 Modo: <code>gratuito</code>\n` +
               `│ ✅ Enviados: <code>${success}</code>\n` +
               `│ 🚫 Bloqueados: <code>${blocked}</code>\n` +
               `│ ❌ Falhas: <code>${failed}</code>\n` +
-              `│ 📊 Fila: <code>${queueSize()}</code>\n` +
               `╰❑`,
               { chat_id: sentMsg.chat.id, message_id: sentMsg.message_id, parse_mode: "HTML" }
             ),
@@ -1433,6 +1403,7 @@ async function broadcast(msg) {
         () => bot.editMessageText(
           `╭─❑ 「 <b>Broadcast Concluído</b> 」 ❑\n` +
           `│ 📤 Total: <code>${total}</code>\n` +
+          `│ 🆓 Modo: <code>gratuito</code>\n` +
           `│ ✅ Enviados: <code>${success}</code>\n` +
           `│ 🚫 Bloqueados (removidos): <code>${blocked}</code>\n` +
           `│ ❌ Falhas: <code>${failed}</code>\n` +
@@ -1966,21 +1937,21 @@ exports.initHandler = () => {
   bot.on("new_chat_members", saveNewChatMembers);
   bot.on("left_chat_member", removeLeftChatMember);
 
-    bot.onText(/^\/start$/, start);
-    bot.onText(/^\/stats$/, stats);
-    bot.onText(/^\/grupos$/, groups);
-    bot.onText(/^\/ban/, ban);
-    bot.onText(/^\/unban/, unban);
-    bot.onText(/^\/banned/, banned);
-    bot.onText(/^\/delmsg/, removeMessage);
-    bot.onText(/^\/lang(?:\s+.+)?$/, setGroupLang);
-    bot.onText(/^\/devs/, devs);
-    bot.onText(/^\/dbstats/, dbstats);
-    bot.onText(/^\/productstats$/, productstats);
-    bot.onText(/^\/unlockbulk$/, unlockbulk);
-    bot.onText(/^\/syncdb/, syncdb);
+    bot.onText(/^\/start(?:@\w+)?(?:\s.*)?$/, start);
+    bot.onText(/^\/stats(?:@\w+)?$/, stats);
+    bot.onText(/^\/grupos(?:@\w+)?$/, groups);
+    bot.onText(/^\/ban(?:@\w+)?(?:\s|$)/, ban);
+    bot.onText(/^\/unban(?:@\w+)?(?:\s|$)/, unban);
+    bot.onText(/^\/banned(?:@\w+)?$/, banned);
+    bot.onText(/^\/delmsg(?:@\w+)?(?:\s|$)/, removeMessage);
+    bot.onText(/^\/lang(?:@\w+)?(?:\s+.+)?$/, setGroupLang);
+    bot.onText(/^\/devs(?:@\w+)?$/, devs);
+    bot.onText(/^\/dbstats(?:@\w+)?$/, dbstats);
+    bot.onText(/^\/productstats(?:@\w+)?$/, productstats);
+    bot.onText(/^\/unlockbulk(?:@\w+)?$/, unlockbulk);
+    bot.onText(/^\/syncdb(?:@\w+)?$/, syncdb);
 
-  bot.onText(/\/ping/, async (msg) => {
+  bot.onText(/^\/ping(?:@\w+)?$/, async (msg) => {
     const start = new Date();
     const replied = await enqueue(() => bot.sendMessage(msg.chat.id, uiText(msg.from, "pong")), PRIORITY.HIGH);
     const ms = new Date() - start;
@@ -1995,7 +1966,7 @@ exports.initHandler = () => {
 
     bot.onText(/^\/bc\b/, bc);
     bot.onText(/^\/broadcast\b/, broadcast);
-    bot.onText(/^\/sendgp/, sendgp);
+    bot.onText(/^\/sendgp\b/, sendgp);
 
     // Status diário às 12:02
     new CronJob("02 00 12 * * *", sendStatus, null, true, "America/Sao_Paulo");
