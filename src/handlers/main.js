@@ -312,13 +312,23 @@ async function answerUser(message) {
     }
   } catch (error) {
     const code = error?.response?.body?.error_code;
-    if (code === 403) {\n      transport.markBlocked(chatId);\n      await bot.__onBlocked(chatId);\n    } else {\n      console.warn("[ANSWER-ERROR]", error.message);\n    }
+    if (code === 403) {
+      transport.markBlocked(chatId);
+      await bot.__onBlocked(chatId);
+    } else {
+      console.warn("[ANSWER-ERROR]", error.message);
+    }
   }
 }
 
 // ─── main message handler ─────────────────────────────────────────────────────
 
-async function main(message) {\n    transport.recordIncoming();\n    if (message?.chat?.type === "private" && transport.isBlocked(message.chat.id)) {\n      transport.unblock(message.chat.id);\n      UserModel.updateOne({ user_id: message.chat.id }, { $set: { telegram_blocked: false } }).catch(() => {});\n    }
+async function main(message) {
+    transport.recordIncoming();
+    if (message?.chat?.type === "private" && transport.isBlocked(message.chat.id)) {
+      transport.unblock(message.chat.id);
+      UserModel.updateOne({ user_id: message.chat.id }, { $set: { telegram_blocked: false } }).catch(() => {});
+    }
     try {
         const replyTo = message?.reply_to_message ?? false;
         const botId = await getBotId();
@@ -920,7 +930,8 @@ async function bc(msg) {
 
   const sentMsg = await bot.sendMessage(msg.chat.id, "<i>⏳ Enviando broadcast...</i>", { parse_mode: "HTML" });
   const ulist = await UserModel.find({ telegram_blocked: { $ne: true } }).lean().select("user_id");
-  console.log(`[BC] Iniciando broadcast para ${ulist.length} usuários`);\n  const broadcastStarted = Date.now();
+  console.log(`[BC] Iniciando broadcast para ${ulist.length} usuários`);
+  const broadcastStarted = Date.now();
 
   let success = 0, blocked = 0, failed = 0;
   const total = ulist.length;
@@ -955,7 +966,8 @@ async function bc(msg) {
     }
   }
 
-  transport.recordBroadcast(Date.now() - broadcastStarted);\n  console.log(`[BC] Concluído: ${success}/${total} enviados | ${blocked} bloqueados | ${failed} falhas`);
+  transport.recordBroadcast(Date.now() - broadcastStarted);
+  console.log(`[BC] Concluído: ${success}/${total} enviados | ${blocked} bloqueados | ${failed} falhas`);
   await bot.editMessageText(
     `╭─❑ 「 <b>Broadcast Concluído</b> 」 ❑\n` +
     `│ 📤 Total: <code>${total}</code>\n` +
@@ -986,7 +998,8 @@ async function sendgp(msg) {
 
   const sentMsg = await bot.sendMessage(msg.chat.id, "<i>⏳ Enviando para grupos...</i>", { parse_mode: "HTML" });
   const chats = await ChatModel.find({ is_ban: false, telegram_blocked: { $ne: true } }).lean().select("chatId chatName");
-  console.log(`[SENDGP] Iniciando envio para ${chats.length} grupos`);\n  const broadcastStarted = Date.now();
+  console.log(`[SENDGP] Iniciando envio para ${chats.length} grupos`);
+  const broadcastStarted = Date.now();
 
   let success = 0, failed = 0;
   const total = chats.length;
@@ -1016,7 +1029,8 @@ async function sendgp(msg) {
     }
   }
 
-  transport.recordBroadcast(Date.now() - broadcastStarted);\n  console.log(`[SENDGP] Concluído: ${success}/${total} enviados | ${failed} falhas`);
+  transport.recordBroadcast(Date.now() - broadcastStarted);
+  console.log(`[SENDGP] Concluído: ${success}/${total} enviados | ${failed} falhas`);
   await bot.editMessageText(
     `╭─❑ 「 <b>Envio em Grupos Concluído</b> 」 ❑\n` +
     `│ 📤 Total: <code>${total}</code>\n` +
