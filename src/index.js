@@ -21,7 +21,10 @@ async function gracefulShutdown(signal) {
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
-initHandler();\n\nconst { transport } = require("./bot");\nsetInterval(() => console.log("[METRICS]", JSON.stringify(transport.snapshot())), 60_000).unref();
+initHandler();
+
+const { transport } = require("./bot");
+setInterval(() => console.log("[METRICS]", JSON.stringify(transport.snapshot())), 60_000).unref();
 
 const server = http.createServer((request, response) => {
   response.writeHead(200, { "content-type": "application/json" });
