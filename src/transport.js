@@ -19,7 +19,7 @@ function attach(bot) {
   }
   function enqueue(priority, chatId, fn) {
     return new Promise((resolve, reject) => {
-      const job = { chatId, fn, resolve, reject, priority, created: Date.now() };
+      const job = { chatId, fn, resolve, reject, priority, created: Date.now(), retries: 0 };
       (priority === "bulk" ? low : high).push(job);
       drain();
     });
@@ -48,7 +48,7 @@ function attach(bot) {
           job.resolve(value);
         } catch (e) {
           if (codeOf(e) === 429) {
-            metrics.rateLimited++;
+            metrics.rateLimited++;\n            job.retries++;\n            if (job.retries > 5) { metrics.failed++; job.reject(e); continue; }
             globalPause = Math.max(globalPause, Date.now() + (retryOf(e) + 1) * 1000);
             (job.priority === "bulk" ? low : high).unshift(job);
             continue;
@@ -69,7 +69,7 @@ function attach(bot) {
     recordIncoming: () => { metrics.received++; },
     snapshot,
     isBlocked: id => blocked.has(String(id)),
-    markBlocked: id => blocked.add(String(id)),
+    markBlocked: id => blocked.add(String(id)),\n    unblock: id => blocked.delete(String(id)),
     recordBroadcast: duration => { metrics.broadcasts++; metrics.broadcastMs += duration; },
   };
   bot.__priorityTransport = transport;
