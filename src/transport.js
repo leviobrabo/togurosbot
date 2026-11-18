@@ -2,7 +2,8 @@
 const metrics = { received: 0, sent: 0, failed: 0, blocked: 0, rateLimited: 0, broadcasts: 0, broadcastMs: 0, latencyTotalMs: 0 };
 const high = [], low = [];
 let running = false, nextGlobal = 0, globalPause = 0;
-const nextChat = new Map();\nsetInterval(() => { for (const [id, until] of nextChat) if (until < Date.now() - 60_000) nextChat.delete(id); }, 60_000).unref();
+const nextChat = new Map();
+setInterval(() => { for (const [id, until] of nextChat) if (until < Date.now() - 60_000) nextChat.delete(id); }, 60_000).unref();
 const blocked = new Set();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const codeOf = e => e?.response?.body?.error_code;
@@ -36,9 +37,7 @@ function attach(bot) {
         const wait = Math.max(0, globalPause - now, nextGlobal - now, (nextChat.get(chat) || 0) - now);
         if (wait) { await sleep(wait); }
         // A waiting bulk job yields to interactive responses.
-        if (low.length && high.length && Date.now() - job.created > 0 && !job.interactive) {
-          // Only yield when this job was taken from bulk.
-        }
+        if (job.priority === "bulk" && high.length) { low.unshift(job); continue; }
         nextGlobal = Date.now() + 40; // ~25 messages/s ceiling per bot
         nextChat.set(chat, Date.now() + (Number(job.chatId) < 0 ? 3100 : 1100));
         try {
@@ -48,7 +47,9 @@ function attach(bot) {
           job.resolve(value);
         } catch (e) {
           if (codeOf(e) === 429) {
-            metrics.rateLimited++;\n            job.retries++;\n            if (job.retries > 5) { metrics.failed++; job.reject(e); continue; }
+            metrics.rateLimited++;
+            job.retries++;
+            if (job.retries > 5) { metrics.failed++; job.reject(e); continue; }
             globalPause = Math.max(globalPause, Date.now() + (retryOf(e) + 1) * 1000);
             (job.priority === "bulk" ? low : high).unshift(job);
             continue;
@@ -69,7 +70,8 @@ function attach(bot) {
     recordIncoming: () => { metrics.received++; },
     snapshot,
     isBlocked: id => blocked.has(String(id)),
-    markBlocked: id => blocked.add(String(id)),\n    unblock: id => blocked.delete(String(id)),
+    markBlocked: id => blocked.add(String(id)),
+    unblock: id => blocked.delete(String(id)),
     recordBroadcast: duration => { metrics.broadcasts++; metrics.broadcastMs += duration; },
   };
   bot.__priorityTransport = transport;
