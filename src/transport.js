@@ -2,7 +2,7 @@
 const metrics = { received: 0, sent: 0, failed: 0, blocked: 0, rateLimited: 0, broadcasts: 0, broadcastMs: 0, latencyTotalMs: 0 };
 const high = [], low = [];
 let running = false, nextGlobal = 0, globalPause = 0;
-const nextChat = new Map();
+const nextChat = new Map();\nsetInterval(() => { for (const [id, until] of nextChat) if (until < Date.now() - 60_000) nextChat.delete(id); }, 60_000).unref();
 const blocked = new Set();
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const codeOf = e => e?.response?.body?.error_code;
