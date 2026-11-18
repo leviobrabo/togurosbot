@@ -9,6 +9,13 @@ const groupId = process.env.groupId;
 const logMsgId = parseInt(process.env.LOG_MSG_ID) || null;
 const channelStatusId = process.env.channelStatusId;
 
+// Ignore updates queued while the bot was offline (Telegram dates are in seconds).
+const BOT_START_TIME = Math.floor(Date.now() / 1000);
+function isFreshMessage(message) {
+  return Number.isFinite(message?.date) && message.date >= BOT_START_TIME;
+}
+
+
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
 function is_dev(user_id) {
@@ -324,6 +331,7 @@ async function answerUser(message) {
 // ─── main message handler ─────────────────────────────────────────────────────
 
 async function main(message) {
+    if (!isFreshMessage(message)) return;
     transport.recordIncoming();
     if (message?.chat?.type === "private" && transport.isBlocked(message.chat.id)) {
       transport.unblock(message.chat.id);
@@ -1089,30 +1097,37 @@ async function onCallbackQuery(callbackQuery) {
 // ─── initHandler ──────────────────────────────────────────────────────────────
 
 function initHandler() {
-  bot.onText(/^\/start(?:\s+(\S+))?$/, start);
-  bot.onText(/^\/stats$/, stats);
-  bot.onText(/^\/metrics$/, async (msg) => {
+  const onFreshText = (pattern, handler) => bot.onText(pattern, (msg, match) => {
+    if (!isFreshMessage(msg)) return;
+    return handler(msg, match);
+  });
+  onFreshText(/^\/start(?:\s+(\S+))?$/, start);
+  onFreshText(/^\/stats$/, stats);
+  onFreshText(/^\/metrics$/, async (msg) => {
     if (!is_dev(msg.from.id) || msg.chat.type !== "private") return;
     await bot.sendMessage(msg.chat.id, "<pre>" + JSON.stringify(transport.snapshot(), null, 2) + "</pre>", { parse_mode: "HTML" });
   });
-  bot.onText(/^\/groups?$/, groups);
-  bot.onText(/^\/banned$/, banned);
-  bot.onText(/^\/ban\s+(\S+)/, ban);
-  bot.onText(/^\/unban\s+(\S+)/, unban);
-  bot.onText(/^\/delmsg$/, removeMessage);
-  bot.onText(/^\/lang(?:\s+(\S+))?$/, setGroupLang);
-  bot.onText(/^\/devs$/, devs);
-  bot.onText(/^\/ping$/, ping);
-  bot.onText(/^\/dbstats$/, dbstats);
-  bot.onText(/^\/syncdb$/, syncdb);
-  bot.onText(/^\/bc\s+(.*)$/, bc);
-  bot.onText(/^\/broadcast\s+(.*)$/, bc);
-  bot.onText(/^\/sendgp\s+(.*)$/, sendgp);
+  onFreshText(/^\/groups?$/, groups);
+  onFreshText(/^\/banned$/, banned);
+  onFreshText(/^\/ban\s+(\S+)/, ban);
+  onFreshText(/^\/unban\s+(\S+)/, unban);
+  onFreshText(/^\/delmsg$/, removeMessage);
+  onFreshText(/^\/lang(?:\s+(\S+))?$/, setGroupLang);
+  onFreshText(/^\/devs$/, devs);
+  onFreshText(/^\/ping$/, ping);
+  onFreshText(/^\/dbstats$/, dbstats);
+  onFreshText(/^\/syncdb$/, syncdb);
+  onFreshText(/^\/bc\s+(.*)$/, bc);
+  onFreshText(/^\/broadcast\s+(.*)$/, bc);
+  onFreshText(/^\/sendgp\s+(.*)$/, sendgp);
 
   bot.on("message", main);
-  bot.on("new_chat_members", saveNewChatMembers);
-  bot.on("left_chat_member", removeLeftChatMember);
-  bot.on("callback_query", onCallbackQuery);
+  bot.on("new_chat_members", msg => { if (isFreshMessage(msg)) return saveNewChatMembers(msg); });
+  bot.on("left_chat_member", msg => { if (isFreshMessage(msg)) return removeLeftChatMember(msg); });
+  bot.on("callback_query", query => {
+    // Callback queries have no event timestamp; old message dates are not reliable here.
+    return onCallbackQuery(query);
+  });
 
   console.log("[INIT] Handler initialized successfully!");
 }
