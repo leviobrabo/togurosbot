@@ -1,5 +1,5 @@
 ﻿const { MessageModel, ChatModel, UserModel } = require("../database");
-const { bot } = require("../bot");
+const { bot, transport } = require("../bot");
 const palavrasProibidas = require("./palavrasproibida.json");
 const { audioList, photoList } = require("../config/media");
 
@@ -291,7 +291,7 @@ async function answerUser(message) {
       if (!validReplies.length) return;
       const replyItem = randomItem(validReplies);
 
-      const typingTime = Math.min(Math.max(50 * replyItem.value.length, 200), 6000);
+      const typingTime = Math.min(Math.max(8 * replyItem.value.length, 40), 250);
       await bot.sendChatAction(chatId, "typing").catch(() => {});
       await new Promise(resolve => setTimeout(resolve, typingTime));
 
@@ -312,16 +312,13 @@ async function answerUser(message) {
     }
   } catch (error) {
     const code = error?.response?.body?.error_code;
-    if (error.message?.includes("CHAT_WRITE_FORBIDDEN") || code === 403) {
-      await bot.leaveChat(chatId).catch(() => {});
-      await ChatModel.deleteOne({ chatId }).catch(() => {});
-    }
+    if (code === 403) {\n      transport.markBlocked(chatId);\n      await bot.__onBlocked(chatId);\n    } else {\n      console.warn("[ANSWER-ERROR]", error.message);\n    }
   }
 }
 
 // ─── main message handler ─────────────────────────────────────────────────────
 
-async function main(message) {
+async function main(message) {\n    transport.recordIncoming();
     try {
         const replyTo = message?.reply_to_message ?? false;
         const botId = await getBotId();
@@ -922,8 +919,8 @@ async function bc(msg) {
   }
 
   const sentMsg = await bot.sendMessage(msg.chat.id, "<i>⏳ Enviando broadcast...</i>", { parse_mode: "HTML" });
-  const ulist = await UserModel.find().lean().select("user_id");
-  console.log(`[BC] Iniciando broadcast para ${ulist.length} usuários`);
+  const ulist = await UserModel.find({ telegram_blocked: { $ne: true } }).lean().select("user_id");
+  console.log(`[BC] Iniciando broadcast para ${ulist.length} usuários`);\n  const broadcastStarted = Date.now();
 
   let success = 0, blocked = 0, failed = 0;
   const total = ulist.length;
@@ -931,17 +928,17 @@ async function bc(msg) {
   for (let i = 0; i < ulist.length; i++) {
     const { user_id } = ulist[i];
     try {
-      await bot.sendMessage(user_id, text, { allow_paid_broadcast: false, disable_web_page_preview: !text.startsWith("-d") });
+      await transport.sendBulk(user_id, text, { allow_paid_broadcast: false, disable_web_page_preview: !text.startsWith("-d") });
       success++;
     } catch (err) {
       if (err.response?.body?.error_code === 403 || err.message?.includes("chat not found")) {
         blocked++;
-        await UserModel.deleteOne({ user_id }).catch(() => {});
+        await UserModel.updateOne({ user_id }, { $set: { telegram_blocked: true } }).catch(() => {});
       } else {
         failed++;
       }
     }
-    await new Promise(resolve => setTimeout(resolve, 500));
+
 
     if ((i + 1) % 50 === 0) {
       const pct = Math.round(((i + 1) / total) * 100);
@@ -958,7 +955,7 @@ async function bc(msg) {
     }
   }
 
-  console.log(`[BC] Concluído: ${success}/${total} enviados | ${blocked} bloqueados | ${failed} falhas`);
+  transport.recordBroadcast(Date.now() - broadcastStarted);\n  console.log(`[BC] Concluído: ${success}/${total} enviados | ${blocked} bloqueados | ${failed} falhas`);
   await bot.editMessageText(
     `╭─❑ 「 <b>Broadcast Concluído</b> 」 ❑\n` +
     `│ 📤 Total: <code>${total}</code>\n` +
@@ -988,8 +985,8 @@ async function sendgp(msg) {
   }
 
   const sentMsg = await bot.sendMessage(msg.chat.id, "<i>⏳ Enviando para grupos...</i>", { parse_mode: "HTML" });
-  const chats = await ChatModel.find({ is_ban: false }).lean().select("chatId chatName");
-  console.log(`[SENDGP] Iniciando envio para ${chats.length} grupos`);
+  const chats = await ChatModel.find({ is_ban: false, telegram_blocked: { $ne: true } }).lean().select("chatId chatName");
+  console.log(`[SENDGP] Iniciando envio para ${chats.length} grupos`);\n  const broadcastStarted = Date.now();
 
   let success = 0, failed = 0;
   const total = chats.length;
@@ -997,13 +994,13 @@ async function sendgp(msg) {
   for (let i = 0; i < chats.length; i++) {
     const { chatId, chatName } = chats[i];
     try {
-      await bot.sendMessage(chatId, text, { disable_web_page_preview: !text.startsWith("-d") });
+      await transport.sendBulk(chatId, text, { disable_web_page_preview: !text.startsWith("-d") });
       success++;
     } catch (err) {
       failed++;
-      await ChatModel.deleteOne({ chatId }).catch(() => {});
+      if (err.response?.body?.error_code === 403) await ChatModel.updateOne({ chatId }, { $set: { telegram_blocked: true } }).catch(() => {});
     }
-    await new Promise(resolve => setTimeout(resolve, 1000));
+
 
     if ((i + 1) % 20 === 0) {
       const pct = Math.round(((i + 1) / total) * 100);
@@ -1019,7 +1016,7 @@ async function sendgp(msg) {
     }
   }
 
-  console.log(`[SENDGP] Concluído: ${success}/${total} enviados | ${failed} falhas`);
+  transport.recordBroadcast(Date.now() - broadcastStarted);\n  console.log(`[SENDGP] Concluído: ${success}/${total} enviados | ${failed} falhas`);
   await bot.editMessageText(
     `╭─❑ 「 <b>Envio em Grupos Concluído</b> 」 ❑\n` +
     `│ 📤 Total: <code>${total}</code>\n` +
@@ -1080,6 +1077,10 @@ async function onCallbackQuery(callbackQuery) {
 function initHandler() {
   bot.onText(/^\/start(?:\s+(\S+))?$/, start);
   bot.onText(/^\/stats$/, stats);
+  bot.onText(/^\/metrics$/, async (msg) => {
+    if (!is_dev(msg.from.id) || msg.chat.type !== "private") return;
+    await bot.sendMessage(msg.chat.id, "<pre>" + JSON.stringify(transport.snapshot(), null, 2) + "</pre>", { parse_mode: "HTML" });
+  });
   bot.onText(/^\/groups?$/, groups);
   bot.onText(/^\/banned$/, banned);
   bot.onText(/^\/ban\s+(\S+)/, ban);
