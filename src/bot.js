@@ -26,4 +26,13 @@ bot.catchGlobal = (err) => {
   console.error(`[TG-ERR] ${msg}`);
 };
 
+const transport = require("./transport").attach(bot);
+bot.__onBlocked = async (chatId) => {
+  try {
+    const { UserModel, ChatModel } = require("./database");
+    if (Number(chatId) > 0) await UserModel.updateOne({ user_id: Number(chatId) }, { $set: { telegram_blocked: true } });
+    else await ChatModel.updateOne({ chatId: Number(chatId) }, { $set: { telegram_blocked: true } });
+  } catch (err) { console.warn("[BLOCKED-DB]", err.message); }
+};
+exports.transport = transport;
 exports.bot = bot;

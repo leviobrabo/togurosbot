@@ -1,4 +1,32 @@
-const PQueue = require("p-queue").default;
+// Dependency-free priority queue for legacy callers; Telegram sends use src/transport.js.
+class PQueue {
+  constructor({ concurrency = 1, interval = 1000, intervalCap = 25 } = {}) {
+    this.concurrency = concurrency; this.interval = interval; this.intervalCap = intervalCap;
+    this.jobs = []; this.pending = 0; this.started = [];
+  }
+  get size() { return this.jobs.length; }
+  add(fn, { priority = 0 } = {}) {
+    return new Promise((resolve, reject) => {
+      this.jobs.push({ fn, priority, resolve, reject });
+      this.jobs.sort((a, b) => b.priority - a.priority);
+      this.drain();
+    });
+  }
+  drain() {
+    const now = Date.now();
+    this.started = this.started.filter(t => now - t < this.interval);
+    if (this.pending >= this.concurrency || !this.jobs.length) return;
+    if (this.started.length >= this.intervalCap) {
+      setTimeout(() => this.drain(), Math.max(1, this.interval - (now - this.started[0]))).unref?.();
+      return;
+    }
+    const job = this.jobs.shift();
+    this.started.push(now); this.pending++;
+    Promise.resolve().then(job.fn).then(job.resolve, job.reject).finally(() => {
+      this.pending--; this.drain();
+    });
+  }
+}
 
 // Telegram Bot API limits:
 // - 30 messages/second globally

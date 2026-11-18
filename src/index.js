@@ -23,6 +23,9 @@ process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 initHandler();
 
+const { transport } = require("./bot");
+setInterval(() => console.log("[METRICS]", JSON.stringify(transport.snapshot())), 60_000).unref();
+
 const server = http.createServer((request, response) => {
   response.writeHead(200, { "content-type": "application/json" });
   response.end(JSON.stringify({ ok: true }));
